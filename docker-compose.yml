@@ -1,0 +1,15 @@
+version: "2"
+services:
+  app:
+    build: .
+    command: stack ghci
+    working_dir: $PWD
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - MESA_GL_VERSION_OVERRIDE=4.5
+      - MESA_GLSL_VERSION_OVERRIDE=450
+    volumes:
+      - "$PWD:$PWD"
+      - .stack:/root/.stack
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
