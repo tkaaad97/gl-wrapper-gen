@@ -18,8 +18,8 @@ main = do
     doc <- XML.readFile XML.def "gl.xml"
     let groupElements = doc ^.. root . el "registry" ./ el "groups" ./ el "group"
         maybeGroups = mapM Group.parseGroup groupElements
-        --commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command" . filtered (\x -> x ^? el "command" ./ el "proto" ./ el "name" . text == Just "glCreateShaderProgramv")
-        commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command"
+        commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command" . filtered (\x -> x ^? el "command" ./ el "proto" ./ el "name" . text == Just "glAreTexturesResident")
+        --commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command"
     groups <- maybe (throwIO . userError $ "failed to parse groups") return maybeGroups
     -- Group.writeAll groups
     print (map parseCommand commandElements)

@@ -2,7 +2,8 @@ module Types
     ( Group(..)
     , Command(..)
     , Param(..)
-    , ParamType(..)
+    , Type(..)
+    , TypeInfo(..)
     , PrimType(..)
     ) where
 
@@ -14,19 +15,25 @@ data Group = Group
     } deriving (Show, Eq)
 
 data Command = Command
-    { commandName       :: !Text
-    , commandParams     :: ![Param]
-    , commandReturnType :: !ParamType
+    { commandName           :: !Text
+    , commandParams         :: ![Param]
+    , commandReturnTypeInfo :: !TypeInfo
     } deriving (Show, Eq)
 
 data Param = Param
-    { paramName :: !Text
-    , paramType :: !ParamType
+    { paramName     :: !Text
+    , paramTypeInfo :: !TypeInfo
     } deriving (Show, Eq)
 
-data ParamType =
-    ParamTypePrim PrimType |
-    ParamTypePtr ParamType
+data TypeInfo = TypeInfo
+    { typeInfoType   :: !Type
+    , typeInfoGroup  :: !(Maybe Text)
+    , typeInfoLength :: !(Maybe Text)
+    } deriving (Show, Eq, Read)
+
+data Type =
+    TypePrim PrimType |
+    TypePtr Type
     deriving (Show, Eq, Read)
 
 data PrimType =
