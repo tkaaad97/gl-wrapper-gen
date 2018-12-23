@@ -26,9 +26,9 @@ data Param = Param
     } deriving (Show, Eq)
 
 data TypeInfo = TypeInfo
-    { typeInfoType   :: !Type
-    , typeInfoGroup  :: !(Maybe Text)
-    , typeInfoLength :: !(Maybe Text)
+    { typeInfoType      :: !Type
+    , typeInfoEnumGroup :: !(Maybe Text)
+    , typeInfoLength    :: !(Maybe Text)
     } deriving (Show, Eq, Read)
 
 data Type =

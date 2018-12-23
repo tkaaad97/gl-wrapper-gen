@@ -37,6 +37,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - directory
     - shakespeare
     - xml-conduit
     - xml-lens
