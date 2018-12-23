@@ -25,6 +25,8 @@ dependencies:
 
 library:
   source-dirs: gl-wrapper
+  dependencies:
+    - gl
 
 executables:
   gl-wrapper-gen:
@@ -38,3 +40,4 @@ executables:
     - shakespeare
     - xml-conduit
     - xml-lens
+    - lens

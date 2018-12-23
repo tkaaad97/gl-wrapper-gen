@@ -3,6 +3,7 @@ module Types
     , Command(..)
     , Param(..)
     , ParamType(..)
+    , PrimType(..)
     ) where
 
 import Data.Text (Text)
@@ -25,9 +26,8 @@ data Param = Param
 
 data ParamType =
     ParamTypePrim PrimType |
-    ParamTypePtr PrimType |
-    ParamTypeConstPtr PrimType
-    deriving (Show, Eq)
+    ParamTypePtr ParamType
+    deriving (Show, Eq, Read)
 
 data PrimType =
     GLDEBUGPROC |
@@ -67,5 +67,5 @@ data PrimType =
     GLushort |
     GLvdpauSurfaceNV |
     GLvoid |
-    Other !Text
-    deriving (Show, Eq)
+    Void
+    deriving (Show, Eq, Read)
