@@ -1,14 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 module Group
-    ( genEnumsExportCode
-    , genGroupDeclaresCode
-    , genMemberDeclaresCode
+    ( genGroupDeclaresCode
     , parseGroup
     , writeAll
-    , writeEnumExportCode
     , writeGroupDeclaresCode
-    , writeMemberDeclaresCodes
     ) where
 
 import qualified Data.Text as T (Text, intercalate, unpack)
@@ -26,76 +22,45 @@ parseGroup elem = do
     return $ Types.Group name members
 
 writeAll :: [Types.Group] -> IO ()
-writeAll groups = do
-    writeEnumExportCode groups
-    writeGroupDeclaresCode groups
-    writeMemberDeclaresCodes groups
-
-writeEnumExportCode :: [Types.Group] -> IO ()
-writeEnumExportCode groups =
-    let groupNames = map Types.groupName groups
-        code = genEnumsExportCode groupNames
-        path = "gl-wrapper/GLW/Enums.hs"
-    in LT.writeFile path code
-
-genEnumsExportCode :: [T.Text] -> LT.Text
-genEnumsExportCode groupNames =
-    [lt|module GLW.Enums
-    ( #{T.intercalate "\n    , " groupNames}
-    ) where
-
-import GLW.Internal.Enums
-|]
+writeAll = writeGroupDeclaresCode
 
 writeGroupDeclaresCode :: [Types.Group] -> IO ()
-writeGroupDeclaresCode group = do
-    let code = genGroupDeclaresCode group
-        path = "gl-wrapper/GLW/Internal/Enums.hs"
+writeGroupDeclaresCode groups = do
+    let code = genGroupDeclaresCode groups
+        path = "gl-wrapper/GLW/Enums.hs"
     LT.writeFile path code
 
 genGroupDeclaresCode :: [Types.Group] -> LT.Text
 genGroupDeclaresCode groups =
     let groupNames = map Types.groupName groups
-        groupDeclares = map genGroupDeclare groupNames
-    in [lt|module GLW.Internal.Enums
+        groupDeclares = map genGroupDeclare groups
+    in [lt|module GLW.Enums
     ( #{T.intercalate "\n    , " groupNames}
     ) where
 
-import qualified Graphics.GL.Types as GL (GLenum)
+import qualified Graphics.GL.Internal.Shared as GL
+import GLW.Classes
 
 #{LT.intercalate "\n" groupDeclares}|]
 
-genGroupDeclare :: T.Text -> LT.Text
-genGroupDeclare groupName = [lt|newtype #{groupName} = #{groupName}
-    { un#{groupName} :: GL.GLenum
-    } deriving (Show, Read, Eq)
+genGroupDeclare :: Types.Group -> LT.Text
+genGroupDeclare group =
+    [lt|data #{groupName} =
+    #{LT.intercalate " |\n    " groupMembers'}
+    deriving (Show, Read, Eq)
+
+instance GLConstant #{groupName} where
+    #{LT.intercalate "\n    " (map toGLConstantBody groupMembers)}
+
+    #{LT.intercalate "\n    " (map fromGLConstantBody groupMembers)}
+    fromGLConstant _ = Nothing
 |]
-
-writeMemberDeclaresCodes :: [Types.Group] -> IO ()
-writeMemberDeclaresCodes = mapM_ writeMemberDeclaresCode
-
-writeMemberDeclaresCode :: Types.Group -> IO ()
-writeMemberDeclaresCode group =
-    let groupName = Types.groupName group
-        groupMembers = Types.groupMembers group
-        code = genMemberDeclaresCode groupName groupMembers
-        path = "gl-wrapper/GLW/Enums/" ++ T.unpack groupName ++ ".hs"
-    in LT.writeFile path code
-
-genMemberDeclaresCode :: T.Text -> [T.Text] -> LT.Text
-genMemberDeclaresCode groupName groupMembers =
-    let memberDeclares = map (genMemberDeclare groupName) groupMembers
-    in [lt|module GLW.Enums.#{groupName}
-    ( #{groupName}
-    , #{T.intercalate "\n    , " groupMembers}
-    ) where
-
-import qualified Graphics.GL.Internal.Shared as GL (#{T.intercalate ", " groupMembers})
-import GLW.Internal.Enums (#{groupName}(..))
-
-#{LT.intercalate "\n" memberDeclares}|]
-
-genMemberDeclare :: T.Text -> T.Text -> LT.Text
-genMemberDeclare group member = [lt|#{member} :: #{group}
-#{member} = #{group} GL.#{member}
-|]
+    where
+    groupName = Types.groupName group
+    groupMembers = Types.groupMembers group
+    groupMembers' =  map addPrefix groupMembers
+    addPrefix groupMember = [lt|#{groupName}_#{groupMember}|]
+    toGLConstantBody groupMember =
+        [lt|toGLConstant #{groupName}_#{groupMember} = GL.#{groupMember}|]
+    fromGLConstantBody groupMember =
+        [lt|fromGLConstant a | a == GL.#{groupMember} = Just #{groupName}_#{groupMember}|]

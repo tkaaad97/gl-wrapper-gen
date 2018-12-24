@@ -17,15 +17,16 @@ import Types (Group(..))
 main :: IO ()
 main = do
     doc <- XML.readFile XML.def "gl.xml"
-    createDirectoryIfMissing True "gl-wrapper/GLW/Internal"
+    createDirectoryIfMissing True "gl-wrapper/GLW"
     let groupElements = doc ^.. root . el "registry" ./ el "groups" ./ el "group"
         maybeGroups = mapM Group.parseGroup groupElements
         --commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command" . filtered (\x -> x ^? el "command" ./ el "proto" ./ el "name" . text == Just "glAreTexturesResident")
-        commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command"
+        commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command" . filtered (\x -> x ^? el "command" ./ el "proto" ./ el "name" . text /= Just "glCreateSyncFromCLeventARB")
     groups <- maybe (throwIO . userError $ "failed to parse groups") return maybeGroups
     let groupNames = map Types.groupName groups
-    -- Group.writeAll groups
+    Group.writeAll groups
 
     let maybeCommands = mapM (Command.parseCommand groupNames) commandElements
     commands <- maybe (throwIO . userError $ "failed to parse commands") return maybeCommands
-    Command.writeAll groupNames commands
+    --Command.writeAll groupNames commands
+    return ()

@@ -57,6 +57,7 @@ data PrimType =
     GLhalf |
     GLhalfARB |
     GLhalfNV |
+    GLhandleARB |
     GLint |
     GLint64 |
     GLint64EXT |

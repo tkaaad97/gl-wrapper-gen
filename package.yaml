@@ -33,9 +33,7 @@ executables:
     main:                Main.hs
     source-dirs:         gl-wrapper-gen
     ghc-options:
-    - -threaded
     - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - directory
     - shakespeare
