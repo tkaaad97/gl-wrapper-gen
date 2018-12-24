@@ -7,6 +7,9 @@ module Group
     , writeGroupDeclaresCode
     ) where
 
+import Control.Lens (filtered)
+import Data.Set (Set)
+import qualified Data.Set as Set (member)
 import qualified Data.Text as T (Text, intercalate, unpack)
 import qualified Data.Text.Lazy as LT (Text, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
@@ -15,10 +18,10 @@ import qualified Text.XML as XML (Element)
 import Text.XML.Lens
 import qualified Types
 
-parseGroup :: XML.Element -> Maybe Types.Group
-parseGroup elem = do
+parseGroup :: Set T.Text -> XML.Element -> Maybe Types.Group
+parseGroup enumNames elem = do
     name <- elem ^? attr "name"
-    let members = elem ^.. el "group" ./ el "enum" . attr "name"
+    let members = elem ^.. el "group" ./ el "enum" . attr "name" . filtered (`Set.member` enumNames)
     return $ Types.Group name members
 
 writeAll :: [Types.Group] -> IO ()
@@ -27,23 +30,26 @@ writeAll = writeGroupDeclaresCode
 writeGroupDeclaresCode :: [Types.Group] -> IO ()
 writeGroupDeclaresCode groups = do
     let code = genGroupDeclaresCode groups
-        path = "gl-wrapper/GLW/Enums.hs"
+        path = "gl-wrapper/GLW/Groups.hs"
     LT.writeFile path code
 
 genGroupDeclaresCode :: [Types.Group] -> LT.Text
 genGroupDeclaresCode groups =
     let groupNames = map Types.groupName groups
         groupDeclares = map genGroupDeclare groups
-    in [lt|module GLW.Enums
+    in [lt|module GLW.Groups
     ( #{T.intercalate "\n    , " groupNames}
     ) where
 
+import qualified Graphics.GL as GL
+import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
 import GLW.Classes
 
 #{LT.intercalate "\n" groupDeclares}|]
 
 genGroupDeclare :: Types.Group -> LT.Text
+genGroupDeclare group | null (Types.groupMembers group) = ""
 genGroupDeclare group =
     [lt|data #{groupName} =
     #{LT.intercalate " |\n    " groupMembers'}

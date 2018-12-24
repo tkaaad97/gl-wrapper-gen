@@ -35,6 +35,7 @@ executables:
     ghc-options:
     - -rtsopts
     dependencies:
+    - containers
     - directory
     - shakespeare
     - xml-conduit

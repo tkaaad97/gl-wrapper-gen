@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Types
     ( Group(..)
     , Command(..)
@@ -5,9 +6,11 @@ module Types
     , Type(..)
     , TypeInfo(..)
     , PrimType(..)
+    , printPrimType
     ) where
 
 import Data.Text (Text)
+import qualified Data.Text as Text (concat, pack)
 
 data Group = Group
     { groupName    :: !Text
@@ -77,3 +80,7 @@ data PrimType =
     GLvoid |
     Void
     deriving (Show, Eq, Read)
+
+printPrimType :: Text -> PrimType -> Text
+printPrimType _ Void   = "()"
+printPrimType prefix a = Text.concat [prefix, Text.pack . show $ a]

@@ -6,8 +6,9 @@ module Command
     ) where
 
 import Control.Lens (filtered)
-import qualified Data.List as List (elem)
 import Data.Maybe (isJust)
+import Data.Set (Set)
+import qualified Data.Set as Set (member, toList)
 import qualified Data.Text as T (Text, concat, filter, intercalate, length,
                                  pack, unpack)
 import qualified Data.Text.Lazy as LT (Text, intercalate)
@@ -18,27 +19,27 @@ import qualified Text.XML as XML (Element(..), Node(..))
 import Text.XML.Lens
 import qualified Types
 
-parseCommand :: [T.Text] -> XML.Element -> Maybe Types.Command
+parseCommand :: Set T.Text -> XML.Element -> Maybe Types.Command
 parseCommand enumGroupNames elem = do
     name <- elem ^?  el "command" ./ el "proto" ./ el "name" . text
     ptype <-parseTypeInfo enumGroupNames =<< elem ^? el "command" ./ el "proto"
     params <- mapM (parseParam enumGroupNames) $ elem ^.. el "command" ./ el "param"
     return (Types.Command name params ptype)
 
-parseParam :: [T.Text] -> XML.Element -> Maybe Types.Param
+parseParam :: Set T.Text -> XML.Element -> Maybe Types.Param
 parseParam enumGroupNames elem = do
     name <- elem ^?  entire ./ el "name" . text
     ptype <- parseTypeInfo enumGroupNames elem
     return (Types.Param name ptype)
 
-parseTypeInfo :: [T.Text] -> XML.Element -> Maybe Types.TypeInfo
+parseTypeInfo :: Set T.Text -> XML.Element -> Maybe Types.TypeInfo
 parseTypeInfo enumGroupNames a = do
     ptype <- parsePrimType (a ^? entire ./ el "ptype" . text)
     let type' = handlePtr (Types.TypePtr (Types.TypePrim ptype)) pointer
     return (Types.TypeInfo type' group len)
     where
     pointer = T.length . T.filter ('*' ==) . T.concat $ a ^.. entire . text
-    group = a ^? attr "group" . filtered (`List.elem` enumGroupNames)
+    group = a ^? attr "group" . filtered (`Set.member` enumGroupNames)
     len = a ^? attr "len"
 
 parsePrimType :: Maybe T.Text -> Maybe Types.PrimType
@@ -49,18 +50,22 @@ handlePtr :: Types.Type -> Int -> Types.Type
 handlePtr p n | n <= 0 = p
 handlePtr p n = handlePtr (Types.TypePtr p) (n - 1)
 
-genCommandDeclaresCode :: [T.Text] -> [Types.Command] -> LT.Text
+genCommandDeclaresCode :: Set T.Text -> [Types.Command] -> LT.Text
 genCommandDeclaresCode groupNames commands =
     let commandNames = map Types.commandName commands
         commandDeclares = map genCommandDeclare commands
     in [lt|module GLW
-    ( #{T.intercalate "\n    , " groupNames}
+    ( #{T.intercalate "\n    , " (Set.toList groupNames)}(..)
     , #{T.intercalate "\n    , " commandNames}
     ) where
 
-import Data.Coerce (coerce)
+import Foreign.Ptr (Ptr)
+import qualified Graphics.GL as GL
+import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
-import GLW.Internal.Enums
+import qualified Graphics.GL.Compatibility45 as GL
+import GLW.Classes
+import GLW.Groups
 
 #{LT.intercalate "\n" commandDeclares}|]
 
@@ -68,7 +73,7 @@ genCommandDeclare :: Types.Command -> LT.Text
 genCommandDeclare command =
     let commandName = Types.commandName command
         params = Types.commandParams command
-        paramNames = map Types.paramName params
+        paramNames = map (modifyParamName . Types.paramName) params
         commandSignature = genCommandSignature command
         coerceParams = map genCoerceParam params
     in [lt|#{commandName} :: #{commandSignature}
@@ -89,16 +94,22 @@ genParamType a = genType type' gorup
     gorup = Types.typeInfoEnumGroup a
 
 genType :: Types.Type -> Maybe T.Text -> T.Text
-genType (Types.TypePrim t) Nothing               = [st|GL.#{show t}|]
+genType (Types.TypePrim t) Nothing               = [st|#{Types.printPrimType "GL." t}|]
 genType (Types.TypePrim _) (Just groupName)      = groupName
 genType (Types.TypePtr a @ (Types.TypePtr _)) g  = [st|Ptr (#{genType a g})|]
 genType (Types.TypePtr a @ (Types.TypePrim _)) g = [st|Ptr #{genType a g}|]
 
 genCoerceParam :: Types.Param -> T.Text
-genCoerceParam (Types.Param name typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) = [st|(coerce #{name})|]
-genCoerceParam (Types.Param name _) = name
+genCoerceParam (Types.Param name typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) = [st|(toGLConstant #{modifyParamName name})|]
+genCoerceParam (Types.Param name _) = modifyParamName name
 
-writeAll :: [T.Text] -> [Types.Command] -> IO ()
+modifyParamName :: T.Text -> T.Text
+modifyParamName name | name == "type" = "type'"
+modifyParamName name | name == "data" = "data'"
+modifyParamName name | name == "in" = "in'"
+modifyParamName name = name
+
+writeAll :: Set T.Text -> [Types.Command] -> IO ()
 writeAll groupNames commands =
     let code = genCommandDeclaresCode groupNames commands
         path = "gl-wrapper/GLW.hs"
