@@ -27,6 +27,7 @@ library:
   source-dirs: gl-wrapper
   dependencies:
     - gl
+    - transformers
 
 executables:
   gl-wrapper-gen:

@@ -35,7 +35,7 @@ parseParam enumGroupNames elem = do
 parseTypeInfo :: Set T.Text -> XML.Element -> Maybe Types.TypeInfo
 parseTypeInfo enumGroupNames a = do
     ptype <- parsePrimType (a ^? entire ./ el "ptype" . text)
-    let type' = handlePtr (Types.TypePtr (Types.TypePrim ptype)) pointer
+    let type' = handlePtr (Types.TypePrim ptype) pointer
     return (Types.TypeInfo type' group len)
     where
     pointer = T.length . T.filter ('*' ==) . T.concat $ a ^.. entire . text
@@ -59,11 +59,11 @@ genCommandDeclaresCode groupNames commands =
     , #{T.intercalate "\n    , " commandNames}
     ) where
 
+import Control.Monad.IO.Class (MonadIO)
 import Foreign.Ptr (Ptr)
 import qualified Graphics.GL as GL
 import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
-import qualified Graphics.GL.Compatibility45 as GL
 import GLW.Classes
 import GLW.Groups
 
@@ -84,14 +84,18 @@ genCommandSignature :: Types.Command -> T.Text
 genCommandSignature command =
     let params = Types.commandParams command
         ptypes = map (genParamType . Types.paramTypeInfo) params
-        rtype = genParamType . Types.commandReturnTypeInfo $ command
-    in T.intercalate " -> " (ptypes ++ [rtype])
+        rtype = genReturnType . Types.commandReturnTypeInfo $ command
+    in T.concat ["MonadIO m => ", T.intercalate " -> " (ptypes ++ [rtype])]
 
 genParamType :: Types.TypeInfo -> T.Text
 genParamType a = genType type' gorup
     where
     type' = Types.typeInfoType a
     gorup = Types.typeInfoEnumGroup a
+
+genReturnType :: Types.TypeInfo -> T.Text
+genReturnType a @ (Types.TypeInfo (Types.TypePtr _) _ _) = T.concat ["m (", genType (Types.typeInfoType a) (Types.typeInfoEnumGroup a), ")"]
+genReturnType a = T.concat ["m ", genType (Types.typeInfoType a) (Types.typeInfoEnumGroup a)]
 
 genType :: Types.Type -> Maybe T.Text -> T.Text
 genType (Types.TypePrim t) Nothing               = [st|#{Types.printPrimType "GL." t}|]

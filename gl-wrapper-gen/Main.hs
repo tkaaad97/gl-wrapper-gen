@@ -8,7 +8,6 @@ import Data.Maybe (isJust, maybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (difference, fromList, member, union)
 import qualified Data.Text.Lazy.IO as LT (putStr)
-import Debug.Trace (trace)
 import qualified Group (parseGroup, writeAll)
 import System.Directory (createDirectoryIfMissing)
 import System.IO.Error (userError)
@@ -25,8 +24,8 @@ main = do
         enumNames = Set.union featureEnumNames extEnumNames
         groupElements = doc ^.. root . el "registry" ./ el "groups" ./ el "group"
         maybeGroups = mapM (Group.parseGroup enumNames) groupElements
-        glFeatureCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" . attributeIs "api" "gl" ./ el "requre" ./ el "command" . attr "name"
-        removedCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" . attributeIs "api" "gl" ./ el "remove" ./ el "command" . attr "name"
+        glFeatureCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" . attributeIs "api" "gl" ./ el "require" ./ el "command" . attr "name"
+        removedCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" ./ el "remove" ./ el "command" . attr "name"
         extensionCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "extensions" ./ el "extension" . attributeIs "supported" "gl" ./ el "require" ./ el "command" . attr "name"
         commandNames = (glFeatureCommandNames `Set.union` extensionCommandNames) `Set.difference` removedCommandNames
         commandElements = doc ^.. root . el "registry" ./ el "commands" ./ el "command" . filtered (filterCommand commandNames)
