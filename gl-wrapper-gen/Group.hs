@@ -14,7 +14,8 @@ import qualified Data.Map.Strict as Map (findWithDefault, fromList, lookup)
 import Data.Maybe (isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (member)
-import qualified Data.Text as T (Text, concat, intercalate, unpack)
+import qualified Data.Text as T (Text, concat, intercalate, splitOn, toLower,
+                                 toTitle, unpack)
 import qualified Data.Text.Lazy as LT (Text, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import Text.Shakespeare.Text (lt)
@@ -84,7 +85,7 @@ genGroupMemberDeclaresCode :: Types.Group -> LT.Text
 genGroupMemberDeclaresCode group =
     [lt|module GLW.Groups.#{groupName}
     ( #{groupName}
-    , _#{T.intercalate "\n    , _" groupMembers}
+    , #{(T.intercalate "\n    , " . map toLowerCamelCase) groupMembers}
     ) where
 
 import GLW.Internal.Groups (#{groupName}(..))
@@ -100,8 +101,9 @@ import qualified Graphics.GL.Internal.Shared as GL
 
 genGroupMemberDeclare :: T.Text -> T.Text -> LT.Text
 genGroupMemberDeclare groupName memberName =
-    [lt|_#{memberName} :: #{groupName}
-_#{memberName} = #{groupName} GL.#{memberName}
+    let memberName' = toLowerCamelCase memberName
+    in [lt|#{memberName'} :: #{groupName}
+#{memberName'} = #{groupName} GL.#{memberName}
 |]
 
 writeGroupMemberDeclaresCodes :: [Types.Group] -> IO ()
@@ -114,3 +116,9 @@ writeGroupMemberDeclaresCode group =
         code = genGroupMemberDeclaresCode group
         path = T.unpack . T.concat $ ["gl-wrapper/GLW/Groups/", groupName, ".hs"]
     in LT.writeFile path code
+
+toLowerCamelCase :: T.Text -> T.Text
+toLowerCamelCase = T.concat . zipWith f [0..] . T.splitOn "_"
+    where
+    f 0 t = T.toLower t
+    f _ t = T.toTitle t
