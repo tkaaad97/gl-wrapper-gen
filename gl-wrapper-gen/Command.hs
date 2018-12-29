@@ -34,17 +34,13 @@ parseParam enumGroupNames elem = do
 
 parseTypeInfo :: Set T.Text -> XML.Element -> Maybe Types.TypeInfo
 parseTypeInfo enumGroupNames a = do
-    ptype <- parsePrimType (a ^? entire ./ el "ptype" . text)
+    ptype <- Types.parsePrimType (a ^? entire ./ el "ptype" . text)
     let type' = handlePtr (Types.TypePrim ptype) pointer
     return (Types.TypeInfo type' group len)
     where
     pointer = T.length . T.filter ('*' ==) . T.concat $ a ^.. entire . text
     group = a ^? attr "group" . filtered (`Set.member` enumGroupNames)
     len = a ^? attr "len"
-
-parsePrimType :: Maybe T.Text -> Maybe Types.PrimType
-parsePrimType (Just p) = readMaybe . T.unpack $ p
-parsePrimType Nothing  = Just Types.Void
 
 handlePtr :: Types.Type -> Int -> Types.Type
 handlePtr p n | n <= 0 = p
@@ -60,12 +56,12 @@ genCommandDeclaresCode groupNames commands =
     ) where
 
 import Control.Monad.IO.Class (MonadIO)
+import Data.Coerce (coerce)
 import Foreign.Ptr (Ptr)
 import qualified Graphics.GL as GL
 import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
-import GLW.Classes
-import GLW.Groups
+import GLW.Internal.Groups
 
 #{LT.intercalate "\n" commandDeclares}|]
 
@@ -76,8 +72,9 @@ genCommandDeclare command =
         paramNames = map (modifyParamName . Types.paramName) params
         commandSignature = genCommandSignature command
         coerceParams = map genCoerceParam params
+        coerceReturnType = genCoerceReturn . Types.commandReturnTypeInfo $ command
     in [lt|#{commandName} :: #{commandSignature}
-#{commandName} #{T.intercalate " " paramNames} = GL.#{commandName} #{T.intercalate " " coerceParams}
+#{commandName} #{T.intercalate " " paramNames} = #{coerceReturnType}GL.#{commandName} #{T.intercalate " " coerceParams}
 |]
 
 genCommandSignature :: Types.Command -> T.Text
@@ -104,8 +101,12 @@ genType (Types.TypePtr a @ (Types.TypePtr _)) g  = [st|Ptr (#{genType a g})|]
 genType (Types.TypePtr a @ (Types.TypePrim _)) g = [st|Ptr #{genType a g}|]
 
 genCoerceParam :: Types.Param -> T.Text
-genCoerceParam (Types.Param name typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) = [st|(toGLConstant #{modifyParamName name})|]
+genCoerceParam (Types.Param name typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) = [st|(coerce #{modifyParamName name})|]
 genCoerceParam (Types.Param name _) = modifyParamName name
+
+genCoerceReturn :: Types.TypeInfo -> T.Text
+genCoerceReturn (Types.TypeInfo _ (Just _) _) = "coerce <$>"
+genCoerceReturn _                             = ""
 
 modifyParamName :: T.Text -> T.Text
 modifyParamName name | name == "type" = "type'"

@@ -8,7 +8,7 @@ import Data.Maybe (isJust, maybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (difference, fromList, member, union)
 import qualified Data.Text.Lazy.IO as LT (putStr)
-import qualified Group (parseGroup, writeAll)
+import qualified Group (parseGroup, parseGroupMemberTypes, writeAll)
 import System.Directory (createDirectoryIfMissing)
 import System.IO.Error (userError)
 import qualified Text.XML as XML (Node(..), def, readFile)
@@ -18,13 +18,15 @@ import Types (Group(..))
 main :: IO ()
 main = do
     doc <- XML.readFile XML.def "gl.xml"
-    createDirectoryIfMissing True "gl-wrapper/GLW"
+    createDirectoryIfMissing True "gl-wrapper/GLW/Internal"
+    createDirectoryIfMissing True "gl-wrapper/GLW/Groups"
     let featureEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" ./ el "require" ./ el "enum" . attr "name"
         extEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "extensions" ./ el "extension" ./ el "require" ./ el "enum" . attr "name"
         enumNames = Set.union featureEnumNames extEnumNames
         groupElements = doc ^.. root . el "registry" ./ el "groups" ./ el "group"
-        maybeGroups = mapM (Group.parseGroup enumNames) groupElements
-        glFeatureCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" . attributeIs "api" "gl" ./ el "require" ./ el "command" . attr "name"
+        groupMemberTypes = Group.parseGroupMemberTypes doc
+        maybeGroups = mapM (Group.parseGroup enumNames groupMemberTypes) groupElements
+        glFeatureCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" . attributeIs "api" "gl" ./ el "requre" ./ el "command" . attr "name"
         removedCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" ./ el "remove" ./ el "command" . attr "name"
         extensionCommandNames = Set.fromList $ doc ^.. root . el "registry" ./ el "extensions" ./ el "extension" . attributeIs "supported" "gl" ./ el "require" ./ el "command" . attr "name"
         commandNames = (glFeatureCommandNames `Set.union` extensionCommandNames) `Set.difference` removedCommandNames

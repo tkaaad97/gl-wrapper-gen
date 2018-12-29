@@ -6,15 +6,18 @@ module Types
     , Type(..)
     , TypeInfo(..)
     , PrimType(..)
+    , parsePrimType
     , printPrimType
     ) where
 
 import Data.Text (Text)
-import qualified Data.Text as Text (concat, pack)
+import qualified Data.Text as Text (concat, pack, unpack)
+import Text.Read (readMaybe)
 
 data Group = Group
-    { groupName    :: !Text
-    , groupMembers :: ![Text]
+    { groupName       :: !Text
+    , groupMembers    :: ![Text]
+    , groupMemberType :: !PrimType
     } deriving (Show, Eq)
 
 data Command = Command
@@ -84,3 +87,7 @@ data PrimType =
 printPrimType :: Text -> PrimType -> Text
 printPrimType _ Void   = "()"
 printPrimType prefix a = Text.concat [prefix, Text.pack . show $ a]
+
+parsePrimType :: Maybe Text -> Maybe Types.PrimType
+parsePrimType (Just p) = readMaybe . Text.unpack $ p
+parsePrimType Nothing  = Just Types.Void
