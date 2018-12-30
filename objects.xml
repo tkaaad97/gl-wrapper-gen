@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects>
+    <object name="Buffer">
+        <constructor type="Multiple">glCreateBuffers</constructor>
+        <destructor type="Multiple">glDeleteBuffers</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command/param[name = "buffer" or name = "buffers"]' attribute="object" value="Buffer" /> </injects>
+    </object>
+    <object name="Framebuffer">
+        <constructor type="Multiple">glCreateFramebuffers</constructor>
+        <destructor type="Multiple">glDeleteFramebuffers</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command/param[name = "framebuffer" or name = "framebuffers"]' attribute="object" value="Framebuffer" />
+        </injects>
+    </object>
+    <object name="Program">
+        <constructor type="SingleReturn">glCreateProgram</constructor>
+        <destructor type="Single">glDeleteProgram</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command/param[name = "program" or name = "programs"]' attribute="object" value="Program" />
+            <inject xpath='/registry/commands/command/proto[name = "glCreateProgram"]' attribute="object" value="Program" />
+        </injects>
+    </object>
+    <!-- <object name="Query">
+        <constructor type="Multiple">glCreateQueries</constructor>
+        <destructor type="Multiple">glDeleteQueries</destructor>
+        <injects>
+            <inject xpath=''/>
+        </injects>
+    </object> -->
+    <object name="Renderbuffers">
+        <constructor type="Multiple">glCreateRenderbuffers</constructor>
+        <destructor type="Multiple">glDeleteRenderbuffers</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command/param[name = "renderbuffer" or name = "renderbuffers"]' attribute="object" value="Renderbuffer" />
+        </injects>
+    </object>
+    <object name="Sampler">
+        <constructor type="Multiple">glCreateSamplers</constructor>
+        <destructor type="Multiple">glDeleteSamplers</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command/param[name = "sampler" or name = "samplers"]' attribute="object" value="Sampler" />
+        </injects>
+    </object>
+    <!-- <object name="Shader">
+        <constructor type="SingleReturn">glCreateShader</constructor>
+        <destructor type="Single">glDeleteShader</destructor>
+        <injects>
+            <inject xpath=''/>
+        </injects>
+    </object> -->
+    <!-- <object name="Texture">
+        <constructor list="True">glCreateTextures</constructor>
+        <destructor list="True">glDeleteTextures</destructor>
+        <injects>
+            <inject xpath=''/>
+        </injects>
+    </object> -->
+    <!-- <object name="TransformFeedback">
+        <constructor type="Multiple">glCreateTransformFeedbacks</constructor>
+        <destructor type="Multiple">glDeleteTransformFeedbacks</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command[contains(proto/name, "TransformFeedback")]/param[name = "id" or name = "ids"]' attribute="object" value="TransformFeedbacks" />
+        </injects>
+    </object> -->
+    <object name="VertexArray">
+        <constructor type="Multiple">glCreateVertexArrays</constructor>
+        <destructor type="Multiple">glDeleteVertexArrays</destructor>
+        <injects>
+            <inject xpath='/registry/commands/command[contains(proto/name, "VertexArray")]/param[name = "array" or name = "arrays"]' attribute="object" value="VertexArray" />
+        </injects>
+    </object>
+</objects>
