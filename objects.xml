@@ -4,7 +4,8 @@
         <constructor type="Multiple">glCreateBuffers</constructor>
         <destructor type="Multiple">glDeleteBuffers</destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "buffer" or name = "buffers"]' attribute="object" value="Buffer" /> </injects>
+            <inject xpath='/registry/commands/command/param[name = "buffer" or name = "buffers"]' attribute="object" value="Buffer" />
+        </injects>
     </object>
     <object name="Framebuffer">
         <constructor type="Multiple">glCreateFramebuffers</constructor>

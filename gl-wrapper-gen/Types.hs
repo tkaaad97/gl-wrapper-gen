@@ -6,6 +6,11 @@ module Types
     , Type(..)
     , TypeInfo(..)
     , PrimType(..)
+    , Object(..)
+    , ObjectConstructor(..)
+    , ConstructorType(..)
+    , ObjectDestructor(..)
+    , DestructorType(..)
     , parsePrimType
     , printPrimType
     ) where
@@ -91,3 +96,29 @@ printPrimType prefix a = Text.concat [prefix, Text.pack . show $ a]
 parsePrimType :: Maybe Text -> Maybe Types.PrimType
 parsePrimType (Just p) = readMaybe . Text.unpack $ p
 parsePrimType Nothing  = Just Types.Void
+
+data Object = Object
+    { objectName        :: !Text
+    , objectConstructor :: !ObjectConstructor
+    , objectDestructor  :: !ObjectDestructor
+    } deriving (Show, Eq)
+
+data ObjectConstructor = ObjectConstructor
+    { objectConstructorCommand :: !Command
+    , objectConstructorType    :: !ConstructorType
+    } deriving (Show, Eq)
+
+data ObjectDestructor = ObjectDestructor
+    { objectDestructorCommand :: !Command
+    , objectDestructorType    :: !DestructorType
+    } deriving (Show, Eq)
+
+data ConstructorType =
+    ConstructorMultiple |
+    ConstructorSingleReturn
+    deriving (Show, Eq)
+
+data DestructorType =
+    DestructorMultiple |
+    DestructorSingle
+    deriving (Show, Eq)

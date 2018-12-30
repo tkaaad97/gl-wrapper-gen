@@ -105,7 +105,7 @@ genCoerceParam (Types.Param name typeInfo) | isJust (Types.typeInfoEnumGroup typ
 genCoerceParam (Types.Param name _) = modifyParamName name
 
 genCoerceReturn :: Types.TypeInfo -> T.Text
-genCoerceReturn (Types.TypeInfo _ (Just _) _) = "coerce <$>"
+genCoerceReturn (Types.TypeInfo _ (Just _) _) = "coerce <$> "
 genCoerceReturn _                             = ""
 
 modifyParamName :: T.Text -> T.Text
