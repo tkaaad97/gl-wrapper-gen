@@ -19,9 +19,10 @@ import qualified Types
 parseObject :: Map T.Text Types.Command -> XML.Element -> Maybe Types.Object
 parseObject commands elem = do
     name <- elem ^? attr "name"
+    let discriminator = parseDiscriminator =<< elem ^? el "object" ./ el "discriminator"
     constructor <- parseConstructor commands =<< elem ^? el "object" ./ el "constructor"
     destructor <- parseDestructor commands =<< elem ^? el "object" ./ el "destructor"
-    return (Types.Object name constructor destructor)
+    return (Types.Object name constructor destructor discriminator)
 
 parseConstructor :: Map T.Text Types.Command -> XML.Element -> Maybe Types.ObjectConstructor
 parseConstructor commands elem = do
@@ -37,6 +38,12 @@ parseDestructor commands elem = do
     command <- Map.lookup name commands
     return (Types.ObjectDestructor command type')
 
+parseDiscriminator :: XML.Element -> Maybe Types.ObjectDiscriminator
+parseDiscriminator elem = do
+    name <- elem ^? attr "name"
+    let members = elem ^.. el "discriminator" ./ el "member" . text
+    return (Types.ObjectDiscriminator name members)
+
 parseConstructorType :: T.Text -> Maybe Types.ConstructorType
 parseConstructorType "Multiple"     = Just Types.ConstructorMultiple
 parseConstructorType "SingleReturn" = Just Types.ConstructorSingleReturn
@@ -49,11 +56,13 @@ parseDestructorType _          = Nothing
 
 genObjectDeclaresCode :: [Types.Object] -> LT.Text
 genObjectDeclaresCode objects =
-    [lt|module GLW.Internal.Objects
+    [lt|{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+module GLW.Internal.Objects
     ( #{T.intercalate "(..)\n    , " objectNames}(..)
     ) where
 
-import GLW.Classes
+import Data.Proxy (Proxy(..))
 
 #{LT.concat objectDeclares}
 |]
@@ -73,11 +82,62 @@ genObjectDeclare object =
     { un#{objectName} :: GL.GLuint
     } deriving (Show, Eq)
 
-#{objectInstanceDeclare}
+#{objectDiscriminatorDeclare}#{objectInstanceDeclare}
 |]
     where
     objectName = Types.objectName object
+    objectDiscriminatorDeclare = genDiscriminatorDeclare . Types.objectDiscriminator $ object
     objectInstanceDeclare = genObjectInstanceDeclare object
+
+genDiscriminatorDeclare :: Maybe Types.ObjectDiscriminator -> LT.Text
+genDiscriminatorDeclare Nothing = ""
+genDiscriminatorDeclare (Just disc) =
+    [lt|data #{discriminatorName} =
+    #{T.intercalate " |\n    " members}
+    deriving (Show, Eq)
+
+class Sing#{discriminatorName} (a :: #{discriminatorName}) where
+    sing#{discriminatorName} :: Proxy a -> #{discriminatorName}
+
+#{singInstances}
+instance Enum #{discriminatorName} where
+    #{toEnum}
+
+    #{fromEnum}
+
+|]
+    where
+    discriminatorName = Types.objectDiscriminatorName disc
+    members = Types.objectDiscriminatorMembers disc
+    singInstances = genSingInstances disc
+    toEnum = genToEnum disc
+    fromEnum = genFromEnum disc
+
+genSingInstances :: Types.ObjectDiscriminator -> LT.Text
+genSingInstances disc = LT.intercalate "\n" singInstances
+    where
+    discriminatorName = Types.objectDiscriminatorName disc
+    members = Types.objectDiscriminatorMembers disc
+    singInstances = map gen members
+    gen member =
+        [lt|instance Sing#{discriminatorName} '#{member} where
+    sing#{discriminatorName} _ = #{member}
+|]
+
+genToEnum :: Types.ObjectDiscriminator -> LT.Text
+genToEnum disc = "toEnum a | " `mappend` LT.intercalate "\n        | " (map gen members ++ [ow])
+    where
+    discriminatorName = Types.objectDiscriminatorName disc
+    members = Types.objectDiscriminatorMembers disc
+    gen member = [lt|a == fromIntegral GL.#{member} = #{member}|]
+    ow = [lt|_ = error "Enum.#{discriminatorName}.toEnum: bad argument"|]
+
+genFromEnum :: Types.ObjectDiscriminator -> LT.Text
+genFromEnum disc = LT.intercalate "\n    " $ map gen members
+    where
+    discriminatorName = Types.objectDiscriminatorName disc
+    members = Types.objectDiscriminatorMembers disc
+    gen member = [lt|fromEnum #{member} = fromIntegral GL.#{member}|]
 
 genObjectInstanceDeclare :: Types.Object -> LT.Text
 genObjectInstanceDeclare object =

@@ -11,6 +11,7 @@ module Types
     , ConstructorType(..)
     , ObjectDestructor(..)
     , DestructorType(..)
+    , ObjectDiscriminator(..)
     , parsePrimType
     , printPrimType
     ) where
@@ -98,9 +99,10 @@ parsePrimType (Just p) = readMaybe . Text.unpack $ p
 parsePrimType Nothing  = Just Types.Void
 
 data Object = Object
-    { objectName        :: !Text
-    , objectConstructor :: !ObjectConstructor
-    , objectDestructor  :: !ObjectDestructor
+    { objectName          :: !Text
+    , objectConstructor   :: !ObjectConstructor
+    , objectDestructor    :: !ObjectDestructor
+    , objectDiscriminator :: !(Maybe ObjectDiscriminator)
     } deriving (Show, Eq)
 
 data ObjectConstructor = ObjectConstructor
@@ -111,6 +113,11 @@ data ObjectConstructor = ObjectConstructor
 data ObjectDestructor = ObjectDestructor
     { objectDestructorCommand :: !Command
     , objectDestructorType    :: !DestructorType
+    } deriving (Show, Eq)
+
+data ObjectDiscriminator = ObjectDiscriminator
+    { objectDiscriminatorName    :: !Text
+    , objectDiscriminatorMembers :: ![Text]
     } deriving (Show, Eq)
 
 data ConstructorType =
