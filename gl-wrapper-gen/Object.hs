@@ -25,14 +25,14 @@ parseObject commands elem = do
 
 parseConstructor :: Map T.Text Types.Command -> XML.Element -> Maybe Types.ObjectConstructor
 parseConstructor commands elem = do
-    name <- elem ^? el "constructor" . text
+    name <- elem ^? el "constructor" ./ el "name" . text
     type' <- parseConstructorType =<< elem ^? attr "type"
     command <- Map.lookup name commands
     return (Types.ObjectConstructor command type')
 
 parseDestructor :: Map T.Text Types.Command -> XML.Element -> Maybe Types.ObjectDestructor
 parseDestructor commands elem = do
-    name <- elem ^? el "destructor" . text
+    name <- elem ^? el "destructor" ./ el "name" . text
     type' <- parseDestructorType =<< elem ^? attr "type"
     command <- Map.lookup name commands
     return (Types.ObjectDestructor command type')
