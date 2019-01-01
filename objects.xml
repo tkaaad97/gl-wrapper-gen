@@ -65,7 +65,7 @@
             <inject xpath='/registry/commands/command[contains(proto/name, "Query")]/param[name = "id" or name = "ids"]' attribute="object" value="Query" />
         </injects>
     </object> -->
-    <object name="Renderbuffers">
+    <object name="Renderbuffer">
         <constructor type="Multiple">
             <name>glCreateRenderbuffers</name>
         </constructor>
