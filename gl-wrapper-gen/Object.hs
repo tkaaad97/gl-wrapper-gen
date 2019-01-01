@@ -17,27 +17,25 @@ import qualified Text.XML as XML (Element)
 import Text.XML.Lens
 import qualified Types
 
-parseObject :: Map T.Text Types.Command -> XML.Element -> Maybe Types.Object
-parseObject commands elem = do
+parseObject :: XML.Element -> Maybe Types.Object
+parseObject elem = do
     name <- elem ^? attr "name"
     let discriminator = parseDiscriminator =<< elem ^? el "object" ./ el "discriminator"
-    constructor <- parseConstructor commands =<< elem ^? el "object" ./ el "constructor"
-    destructor <- parseDestructor commands =<< elem ^? el "object" ./ el "destructor"
+    constructor <- parseConstructor =<< elem ^? el "object" ./ el "constructor"
+    destructor <- parseDestructor =<< elem ^? el "object" ./ el "destructor"
     return (Types.Object name constructor destructor discriminator)
 
-parseConstructor :: Map T.Text Types.Command -> XML.Element -> Maybe Types.ObjectConstructor
-parseConstructor commands elem = do
+parseConstructor :: XML.Element -> Maybe Types.ObjectConstructor
+parseConstructor elem = do
     name <- elem ^? el "constructor" ./ el "name" . text
     type' <- parseConstructorType =<< elem ^? attr "type"
-    command <- Map.lookup name commands
-    return (Types.ObjectConstructor command type')
+    return (Types.ObjectConstructor name type')
 
-parseDestructor :: Map T.Text Types.Command -> XML.Element -> Maybe Types.ObjectDestructor
-parseDestructor commands elem = do
+parseDestructor :: XML.Element -> Maybe Types.ObjectDestructor
+parseDestructor elem = do
     name <- elem ^? el "destructor" ./ el "name" . text
     type' <- parseDestructorType =<< elem ^? attr "type"
-    command <- Map.lookup name commands
-    return (Types.ObjectDestructor command type')
+    return (Types.ObjectDestructor name type')
 
 parseDiscriminator :: XML.Element -> Maybe Types.ObjectDiscriminator
 parseDiscriminator elem = do
@@ -208,16 +206,16 @@ genObjectInstanceDeclare (Types.Object objectName constructor destructor (Just d
 
 genCreateObjectDeclare :: Types.ObjectConstructor -> Maybe T.Text -> LT.Text
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) Nothing =
-    [lt|createObjects = mkCreateObjects GL.#{Types.commandName command}|]
+    [lt|createObjects = mkCreateObjects GL.#{command}|]
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) Nothing =
-    [lt|createObject = mkCreateObject GL.#{Types.commandName command}|]
+    [lt|createObject = mkCreateObject GL.#{command}|]
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) (Just discriminatorName) =
-    [lt|createObjects = mkCreateObjects (GL.#{Types.commandName command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
+    [lt|createObjects = mkCreateObjects (GL.#{command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) (Just discriminatorName) =
-    [lt|createObject = mkCreateObject (GL.#{Types.commandName command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
+    [lt|createObject = mkCreateObject (GL.#{command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
 
 genDeleteObjectDeclare :: Types.ObjectDestructor -> LT.Text
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorMultiple) =
-    [lt|deleteObjects = mkDeleteObjects GL.#{Types.commandName command}|]
+    [lt|deleteObjects = mkDeleteObjects GL.#{command}|]
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorSingle) =
-    [lt|deleteObject = mkDeleteObject GL.#{Types.commandName command}|]
+    [lt|deleteObject = mkDeleteObject GL.#{command}|]

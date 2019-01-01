@@ -40,8 +40,9 @@ data Param = Param
 data TypeInfo = TypeInfo
     { typeInfoType      :: !Type
     , typeInfoEnumGroup :: !(Maybe Text)
+    , typeInfoObject    :: !(Maybe Object)
     , typeInfoLength    :: !(Maybe Text)
-    } deriving (Show, Eq, Read)
+    } deriving (Show, Eq)
 
 data Type =
     TypePrim PrimType |
@@ -106,12 +107,12 @@ data Object = Object
     } deriving (Show, Eq)
 
 data ObjectConstructor = ObjectConstructor
-    { objectConstructorCommand :: !Command
+    { objectConstructorCommand :: !Text
     , objectConstructorType    :: !ConstructorType
     } deriving (Show, Eq)
 
 data ObjectDestructor = ObjectDestructor
-    { objectDestructorCommand :: !Command
+    { objectDestructorCommand :: !Text
     , objectDestructorType    :: !DestructorType
     } deriving (Show, Eq)
 

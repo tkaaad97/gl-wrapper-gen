@@ -109,7 +109,7 @@
         </injects>
     </object>
     <object name="Texture">
-        <discriminator name="TextureTarget">
+        <discriminator name="TextureTarget'">
             <member>GL_TEXTURE_1D</member>
             <member>GL_TEXTURE_2D</member>
             <member>GL_TEXTURE_3D</member>

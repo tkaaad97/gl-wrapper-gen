@@ -16,15 +16,21 @@ import System.Directory (createDirectoryIfMissing)
 import System.IO.Error (userError)
 import qualified Text.XML as XML (Node(..), def, readFile)
 import Text.XML.Lens
-import qualified Types (Command(..), Group(..))
+import qualified Types (Command(..), Group(..), Object(..))
 
 main :: IO ()
 main = do
-    doc <- XML.readFile XML.def "gl.xml"
+    doc <- XML.readFile XML.def "glw.xml"
     objectDoc <- XML.readFile XML.def "objects.xml"
     createDirectoryIfMissing True "gl-wrapper/GLW/Internal"
     createDirectoryIfMissing True "gl-wrapper/GLW/Groups"
-    let featureEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" ./ el "require" ./ el "enum" . attr "name"
+
+    let objectElements = objectDoc ^.. root . el "objects" ./ el "object"
+        maybeObjects = mapM Object.parseObject objectElements
+    objects <- maybe (throwIO . userError $ "failed to parse objects") return maybeObjects
+
+    let om = Map.fromList . map (Types.objectName &&& id) $ objects
+        featureEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" ./ el "require" ./ el "enum" . attr "name"
         extEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "extensions" ./ el "extension" ./ el "require" ./ el "enum" . attr "name"
         enumNames = Set.union featureEnumNames extEnumNames
         groupElements = doc ^.. root . el "registry" ./ el "groups" ./ el "group"
@@ -39,17 +45,14 @@ main = do
     groups <- maybe (throwIO . userError $ "failed to parse groups") return maybeGroups
     let filteredGroups = filter (not . null . Types.groupMembers)  groups
         groupNames = Set.fromList $ map Types.groupName filteredGroups
-    Group.writeAll filteredGroups
 
-    let maybeCommands = mapM (Command.parseCommand groupNames) commandElements
+    let maybeCommands = mapM (Command.parseCommand groupNames om) commandElements
     commands <- maybe (throwIO . userError $ "failed to parse commands") return maybeCommands
-    Command.writeAll groupNames commands
 
-    let objectElements = objectDoc ^.. root . el "objects" ./ el "object"
-        cm = Map.fromList . map (Types.commandName &&& id) $ commands
-        maybeObjects = mapM (Object.parseObject cm) objectElements
-    objects <- maybe (throwIO . userError $ "failed to parse objects") return maybeObjects
     Object.writeObjectDeclaresCode objects
+    Group.writeAll filteredGroups
+    Command.writeAll groupNames om commands
+
     return ()
 
     where
