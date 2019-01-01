@@ -8,6 +8,7 @@ module Object
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (lookup)
+import Data.Maybe (catMaybes)
 import qualified Data.Text as T (Text, intercalate)
 import qualified Data.Text.Lazy as LT (Text, concat, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
@@ -56,19 +57,58 @@ parseDestructorType _          = Nothing
 
 genObjectDeclaresCode :: [Types.Object] -> LT.Text
 genObjectDeclaresCode objects =
-    [lt|{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
+    [lt|{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module GLW.Internal.Objects
     ( #{T.intercalate "(..)\n    , " objectNames}(..)
+    , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
+    , Object(..)
     ) where
 
+import Control.Monad (replicateM)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Coerce (Coercible, coerce)
 import Data.Proxy (Proxy(..))
+import qualified Foreign (Ptr, free, mallocArray, newArray, peekArray)
+import qualified Graphics.GL as GL
 
-#{LT.concat objectDeclares}
-|]
+mkCreateObject :: (MonadIO m, Coercible GL.GLuint a) => m GL.GLuint -> m a
+mkCreateObject = fmap coerce
+
+mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr GL.GLuint -> m ()) -> Int -> m [a]
+mkCreateObjects f n = do
+    p <- liftIO $ Foreign.mallocArray n
+    f (fromIntegral n) p
+    a <- liftIO (Foreign.peekArray n p)
+    liftIO $ Foreign.free p
+    return (coerce a)
+
+mkDeleteObject :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLuint -> m ()) -> a -> m ()
+mkDeleteObject = (. coerce)
+
+mkDeleteObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr GL.GLuint -> m ()) -> [a] -> m ()
+mkDeleteObjects f objs = do
+    p <- liftIO $ Foreign.newArray (coerce objs)
+    f (fromIntegral (length objs)) p
+    liftIO $ Foreign.free p
+
+class Object a where
+    createObject :: MonadIO m => m a
+    createObject = head <$> createObjects 1
+    createObjects :: MonadIO m => Int -> m [a]
+    createObjects n = replicateM n createObject
+    deleteObject :: MonadIO m => a -> m ()
+    deleteObject a = deleteObjects [a]
+    deleteObjects :: MonadIO m => [a] -> m ()
+    deleteObjects = mapM_ deleteObject
+
+#{LT.intercalate "\n" objectDeclares}|]
     where
     objectNames = map Types.objectName objects
     objectDeclares = map genObjectDeclare objects
+    discriminatorNames = map Types.objectDiscriminatorName . catMaybes . map Types.objectDiscriminator $ objects
 
 writeObjectDeclaresCode :: [Types.Object] -> IO ()
 writeObjectDeclaresCode objects =
@@ -77,21 +117,29 @@ writeObjectDeclaresCode objects =
     in LT.writeFile path code
 
 genObjectDeclare :: Types.Object -> LT.Text
-genObjectDeclare object =
+genObjectDeclare object @ (Types.Object objectName _ _ Nothing) =
     [lt|newtype #{objectName} = #{objectName}
     { un#{objectName} :: GL.GLuint
     } deriving (Show, Eq)
 
-#{objectDiscriminatorDeclare}#{objectInstanceDeclare}
-|]
+#{objectInstanceDeclare}|]
     where
-    objectName = Types.objectName object
-    objectDiscriminatorDeclare = genDiscriminatorDeclare . Types.objectDiscriminator $ object
     objectInstanceDeclare = genObjectInstanceDeclare object
 
-genDiscriminatorDeclare :: Maybe Types.ObjectDiscriminator -> LT.Text
-genDiscriminatorDeclare Nothing = ""
-genDiscriminatorDeclare (Just disc) =
+genObjectDeclare object @ (Types.Object objectName _ _ (Just discriminator)) =
+    [lt|newtype #{objectName} (a :: #{discriminatorName}) = #{objectName}
+    { un#{objectName} :: GL.GLuint
+    } deriving (Show, Eq)
+
+#{objectDiscriminatorDeclare}
+#{objectInstanceDeclare}|]
+    where
+    discriminatorName = Types.objectDiscriminatorName discriminator
+    objectDiscriminatorDeclare = genDiscriminatorDeclare discriminator
+    objectInstanceDeclare = genObjectInstanceDeclare object
+
+genDiscriminatorDeclare :: Types.ObjectDiscriminator -> LT.Text
+genDiscriminatorDeclare disc =
     [lt|data #{discriminatorName} =
     #{T.intercalate " |\n    " members}
     deriving (Show, Eq)
@@ -104,7 +152,6 @@ instance Enum #{discriminatorName} where
     #{toEnum}
 
     #{fromEnum}
-
 |]
     where
     discriminatorName = Types.objectDiscriminatorName disc
@@ -130,7 +177,7 @@ genToEnum disc = "toEnum a | " `mappend` LT.intercalate "\n        | " (map gen 
     discriminatorName = Types.objectDiscriminatorName disc
     members = Types.objectDiscriminatorMembers disc
     gen member = [lt|a == fromIntegral GL.#{member} = #{member}|]
-    ow = [lt|_ = error "Enum.#{discriminatorName}.toEnum: bad argument"|]
+    ow = [lt|otherwise = error "Enum.#{discriminatorName}.toEnum: bad argument"|]
 
 genFromEnum :: Types.ObjectDiscriminator -> LT.Text
 genFromEnum disc = LT.intercalate "\n    " $ map gen members
@@ -140,24 +187,37 @@ genFromEnum disc = LT.intercalate "\n    " $ map gen members
     gen member = [lt|fromEnum #{member} = fromIntegral GL.#{member}|]
 
 genObjectInstanceDeclare :: Types.Object -> LT.Text
-genObjectInstanceDeclare object =
-    [lt|instance GLObject #{objectName} where
+genObjectInstanceDeclare (Types.Object objectName constructor destructor Nothing) =
+    [lt|instance Object #{objectName} where
     #{createObjectDeclare}
     #{deleteObjectDeclare}
 |]
     where
-    objectName = Types.objectName object
-    createObjectDeclare = genCreateObjectDeclare . Types.objectConstructor $ object
-    deleteObjectDeclare = genDeleteObjectDeclare . Types.objectDestructor $ object
+    createObjectDeclare = genCreateObjectDeclare constructor Nothing
+    deleteObjectDeclare = genDeleteObjectDeclare destructor
 
-genCreateObjectDeclare :: Types.ObjectConstructor -> LT.Text
-genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) =
-    [lt|createObjects = mkCreateObjects #{Types.commandName command}|]
-genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) =
-    [lt|createObject = mkCreateObject #{Types.commandName command}|]
+genObjectInstanceDeclare (Types.Object objectName constructor destructor (Just discriminator)) =
+    [lt|instance Sing#{discriminatorName} a => Object (#{objectName} (a :: #{discriminatorName})) where
+    #{createObjectDeclare}
+    #{deleteObjectDeclare}
+|]
+    where
+    discriminatorName = Types.objectDiscriminatorName discriminator
+    createObjectDeclare = genCreateObjectDeclare constructor (Just discriminatorName)
+    deleteObjectDeclare = genDeleteObjectDeclare destructor
+
+genCreateObjectDeclare :: Types.ObjectConstructor -> Maybe T.Text -> LT.Text
+genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) Nothing =
+    [lt|createObjects = mkCreateObjects GL.#{Types.commandName command}|]
+genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) Nothing =
+    [lt|createObject = mkCreateObject GL.#{Types.commandName command}|]
+genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) (Just discriminatorName) =
+    [lt|createObjects = mkCreateObjects (GL.#{Types.commandName command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
+genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) (Just discriminatorName) =
+    [lt|createObject = mkCreateObject (GL.#{Types.commandName command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
 
 genDeleteObjectDeclare :: Types.ObjectDestructor -> LT.Text
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorMultiple) =
-    [lt|deleteObjects = mkDeleteObjects #{Types.commandName command}|]
+    [lt|deleteObjects = mkDeleteObjects GL.#{Types.commandName command}|]
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorSingle) =
-    [lt|deleteObject = mkDeleteObject #{Types.commandName command}|]
+    [lt|deleteObject = mkDeleteObject GL.#{Types.commandName command}|]
