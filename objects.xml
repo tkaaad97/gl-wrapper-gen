@@ -141,7 +141,7 @@
             <name>glDeleteTransformFeedbacks</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "TransformFeedback")]/param[name = "id" or name = "ids"]' attribute="object" value="TransformFeedbacks" />
+            <inject xpath='/registry/commands/command[contains(proto/name, "TransformFeedback")]/param[name = "id" or name = "ids" or name = "xfb"]' attribute="object" value="TransformFeedback" />
         </injects>
     </object>
     <object name="VertexArray">
