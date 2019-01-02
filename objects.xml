@@ -45,7 +45,7 @@
             <inject xpath='/registry/commands/command/param[name = "pipeline" or name = "pipelines"]' attribute="object" value="ProgramPipeline" />
         </injects>
     </object>
-    <!-- <object name="Query">
+    <object name="Query">
         <discriminator name="QueryTarget">
             <member>GL_SAMPLES_PASSED</member>
             <member>GL_ANY_SAMPLES_PASSED</member>
@@ -62,9 +62,9 @@
             <name>glDeleteQueries</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "Query")]/param[name = "id" or name = "ids"]' attribute="object" value="Query" />
+            <inject xpath='/registry/commands/command[(contains(proto/name, "Query") or contains(proto/name, "Queries")) and not(contains(proto/name, "OcclusionQuer"))]/param[name = "id" or name = "ids"]' attribute="object" value="Query" />
         </injects>
-    </object> -->
+    </object>
     <object name="Renderbuffer">
         <constructor type="Multiple">
             <name>glCreateRenderbuffers</name>
