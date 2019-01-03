@@ -10,7 +10,7 @@ module Group
 
 import Control.Lens (filtered)
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map (findWithDefault, fromList, lookup)
+import qualified Data.Map.Strict as Map (findWithDefault, fromList)
 import Data.Maybe (isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (member)
@@ -24,11 +24,11 @@ import Text.XML.Lens
 import qualified Types
 
 parseGroup :: Set T.Text -> Map T.Text Types.PrimType -> XML.Element -> Maybe Types.Group
-parseGroup enumNames types elem = do
-    name <- elem ^? attr "name"
-    let type' = Map.findWithDefault Types.GLenum name types
-        members = elem ^.. el "group" ./ el "enum" . attr "name" . filtered (`Set.member` enumNames)
-    return $ Types.Group name members type'
+parseGroup enumNames types elem' = do
+    gname <- elem' ^? attr "name"
+    let type' = Map.findWithDefault Types.GLenum gname types
+        members = elem' ^.. el "group" ./ el "enum" . attr "name" . filtered (`Set.member` enumNames)
+    return $ Types.Group gname members type'
 
 parseGroupMemberTypes :: XML.Document -> Map T.Text Types.PrimType
 parseGroupMemberTypes doc = Map.fromList . mapMaybe parseGroupMemberType $ protos ++ params
@@ -38,9 +38,9 @@ parseGroupMemberTypes doc = Map.fromList . mapMaybe parseGroupMemberType $ proto
     hasGroupAttr = isJust . (^? entire . attr "group")
 
 parseGroupMemberType :: XML.Element -> Maybe (T.Text, Types.PrimType)
-parseGroupMemberType elem = do
-    group <- elem ^? entire . attr "group"
-    ptype <- Types.parsePrimType . Just =<< (elem ^? entire . el "ptype" . text)
+parseGroupMemberType elem' = do
+    group <- elem' ^? entire . attr "group"
+    ptype <- Types.parsePrimType . Just =<< (elem' ^? entire . el "ptype" . text)
     return (group, ptype)
 
 writeAll :: [Types.Group] -> IO ()
@@ -63,8 +63,6 @@ genGroupDeclaresCode groups =
     ) where
 
 import qualified Graphics.GL as GL
-import qualified Graphics.GL.Ext as GL
-import qualified Graphics.GL.Internal.Shared as GL
 
 #{LT.intercalate "\n" groupDeclares}|]
 
@@ -77,12 +75,12 @@ genGroupDeclare group =
 |]
     where
     groupName = Types.groupName group
-    groupMembers = Types.groupMembers group
     groupMemberType = Types.groupMemberType group
 
 genGroupMemberDeclaresCode :: Types.Group -> LT.Text
 genGroupMemberDeclaresCode group =
-    [lt|module GLW.Groups.#{groupName}
+    [lt|{-# OPTIONS -fno-warn-unused-imports #-}
+module GLW.Groups.#{groupName}
     ( #{groupName}
     , #{(T.intercalate "\n    , " . map toLowerCamelCase) groupMembers}
     ) where
@@ -117,7 +115,7 @@ writeGroupMemberDeclaresCode group =
     in LT.writeFile path code
 
 toLowerCamelCase :: T.Text -> T.Text
-toLowerCamelCase = T.concat . zipWith f [0..] . T.splitOn "_"
+toLowerCamelCase = T.concat . zipWith f ([0..] :: [Int]) . T.splitOn "_"
     where
     f 0 t = T.toLower t
     f _ t = T.toTitle t

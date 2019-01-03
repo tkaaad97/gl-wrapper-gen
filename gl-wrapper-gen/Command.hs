@@ -68,7 +68,6 @@ import Foreign.Ptr (Ptr)
 import qualified Graphics.GL as GL
 import qualified Graphics.GL.Compatibility45 as GL
 import qualified Graphics.GL.Ext as GL
-import qualified Graphics.GL.Internal.Shared as GL
 import GLW.Internal.Groups
 import GLW.Internal.Objects
 import Prelude ((<$>))
