@@ -152,7 +152,7 @@
             <name>glDeleteVertexArrays</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "VertexArray")]/param[name = "array" or name = "arrays"]' attribute="object" value="VertexArray" />
+            <inject xpath='/registry/commands/command[contains(proto/name, "VertexArray")]/param[name = "array" or name = "arrays" or name = "vaobj"]' attribute="object" value="VertexArray" />
         </injects>
     </object>
 </objects>
