@@ -7,32 +7,30 @@ module Command
 
 import Control.Lens (filtered)
 import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map (elems, keys, lookup, toList)
+import qualified Data.Map.Strict as Map (elems, keys, lookup)
 import Data.Maybe (isJust, mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (member, toList)
-import qualified Data.Text as T (Text, concat, filter, intercalate, length,
-                                 pack, unpack)
+import qualified Data.Text as T (Text, concat, filter, intercalate, length)
 import qualified Data.Text.Lazy as LT (Text, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
-import Text.Read (readMaybe)
 import Text.Shakespeare.Text (lt, st)
-import qualified Text.XML as XML (Element(..), Node(..))
+import qualified Text.XML as XML (Element(..))
 import Text.XML.Lens
 import qualified Types
 
 parseCommand :: Set T.Text -> Map T.Text Types.Object -> XML.Element -> Maybe Types.Command
-parseCommand enumGroupNames objects elem = do
-    name <- elem ^?  el "command" ./ el "proto" ./ el "name" . text
-    ptype <-parseTypeInfo enumGroupNames objects =<< elem ^? el "command" ./ el "proto"
-    params <- mapM (parseParam enumGroupNames objects) $ elem ^.. el "command" ./ el "param"
-    return (Types.Command name params ptype)
+parseCommand enumGroupNames objects elem' = do
+    cname <- elem' ^?  el "command" ./ el "proto" ./ el "name" . text
+    ptype <-parseTypeInfo enumGroupNames objects =<< elem' ^? el "command" ./ el "proto"
+    params <- mapM (parseParam enumGroupNames objects) $ elem' ^.. el "command" ./ el "param"
+    return (Types.Command cname params ptype)
 
 parseParam :: Set T.Text -> Map T.Text Types.Object -> XML.Element -> Maybe Types.Param
-parseParam enumGroupNames objects elem = do
-    name <- elem ^?  entire ./ el "name" . text
-    ptype <- parseTypeInfo enumGroupNames objects elem
-    return (Types.Param name ptype)
+parseParam enumGroupNames objects elem' = do
+    pname <- elem' ^?  entire ./ el "name" . text
+    ptype <- parseTypeInfo enumGroupNames objects elem'
+    return (Types.Param pname ptype)
 
 parseTypeInfo :: Set T.Text -> Map T.Text Types.Object -> XML.Element -> Maybe Types.TypeInfo
 parseTypeInfo enumGroupNames objects a = do
@@ -73,6 +71,7 @@ import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
 import GLW.Internal.Groups
 import GLW.Internal.Objects
+import Prelude ()
 
 #{LT.intercalate "\n" commandDeclares}|]
 
@@ -116,13 +115,13 @@ handleBracket True a = T.concat ["(", a, ")"]
 handleBracket _ a    = a
 
 genObjectType :: Bool -> Types.Object -> T.Text
-genObjectType _ (Types.Object name _ _ Nothing) = name
-genObjectType b (Types.Object name _ _ (Just (Types.ObjectDiscriminator dname _))) = handleBracket b [st|#{name} (a :: #{dname})|]
+genObjectType _ (Types.Object oname _ _ Nothing) = oname
+genObjectType b (Types.Object oname _ _ (Just (Types.ObjectDiscriminator dname _))) = handleBracket b [st|#{oname} (a :: #{dname})|]
 
 genCoerceParam :: Types.Param -> T.Text
-genCoerceParam (Types.Param name typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) || isJust (Types.typeInfoObject typeInfo) =
-    [st|(coerce #{modifyParamName name})|]
-genCoerceParam (Types.Param name _) = modifyParamName name
+genCoerceParam (Types.Param pname typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) || isJust (Types.typeInfoObject typeInfo) =
+    [st|(coerce #{modifyParamName pname})|]
+genCoerceParam (Types.Param pname _) = modifyParamName pname
 
 genCoerceReturn :: Types.TypeInfo -> T.Text
 genCoerceReturn (Types.TypeInfo _ (Just _) _ _) = "coerce <$> "
@@ -130,10 +129,10 @@ genCoerceReturn (Types.TypeInfo _ _ (Just _) _) = "coerce <$> "
 genCoerceReturn _                               = ""
 
 modifyParamName :: T.Text -> T.Text
-modifyParamName name | name == "type" = "type'"
-modifyParamName name | name == "data" = "data'"
-modifyParamName name | name == "in" = "in'"
-modifyParamName name = name
+modifyParamName pname | pname == "type" = "type'"
+modifyParamName pname | pname == "data" = "data'"
+modifyParamName pname | pname == "in" = "in'"
+modifyParamName pname = pname
 
 writeAll :: Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> IO ()
 writeAll groupNames objects commands =

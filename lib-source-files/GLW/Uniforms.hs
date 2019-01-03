@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module GLW.Uniforms
     ( Uniform(..)
+    , UniformComponent(..)
     ) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
