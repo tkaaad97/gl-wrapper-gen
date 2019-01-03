@@ -25,6 +25,10 @@ dependencies:
 
 library:
   source-dirs: gl-wrapper
+  ghc-options:
+    - -Wall
+    - -Wcompat
+    - -Wredundant-constraints
   dependencies:
     - gl
     - linear
@@ -36,7 +40,9 @@ executables:
     main:                Main.hs
     source-dirs:         gl-wrapper-gen
     ghc-options:
-    - -rtsopts
+    - -Wall
+    - -Wcompat
+    - -Wredundant-constraints
     dependencies:
     - containers
     - directory
