@@ -71,7 +71,7 @@ import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
 import GLW.Internal.Groups
 import GLW.Internal.Objects
-import Prelude ()
+import Prelude ((<$>))
 
 #{LT.intercalate "\n" commandDeclares}|]
 

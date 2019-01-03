@@ -6,11 +6,9 @@ module Object
     , writeObjectDeclaresCode
     ) where
 
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map (lookup)
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T (Text, intercalate)
-import qualified Data.Text.Lazy as LT (Text, concat, intercalate)
+import qualified Data.Text.Lazy as LT (Text, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import Text.Shakespeare.Text (lt)
 import qualified Text.XML as XML (Element)
@@ -18,30 +16,30 @@ import Text.XML.Lens
 import qualified Types
 
 parseObject :: XML.Element -> Maybe Types.Object
-parseObject elem = do
-    name <- elem ^? attr "name"
-    let discriminator = parseDiscriminator =<< elem ^? el "object" ./ el "discriminator"
-    constructor <- parseConstructor =<< elem ^? el "object" ./ el "constructor"
-    destructor <- parseDestructor =<< elem ^? el "object" ./ el "destructor"
-    return (Types.Object name constructor destructor discriminator)
+parseObject elem' = do
+    oname <- elem' ^? attr "name"
+    let discriminator = parseDiscriminator =<< elem' ^? el "object" ./ el "discriminator"
+    constructor <- parseConstructor =<< elem' ^? el "object" ./ el "constructor"
+    destructor <- parseDestructor =<< elem' ^? el "object" ./ el "destructor"
+    return (Types.Object oname constructor destructor discriminator)
 
 parseConstructor :: XML.Element -> Maybe Types.ObjectConstructor
-parseConstructor elem = do
-    name <- elem ^? el "constructor" ./ el "name" . text
-    type' <- parseConstructorType =<< elem ^? attr "type"
-    return (Types.ObjectConstructor name type')
+parseConstructor elem' = do
+    cname <- elem' ^? el "constructor" ./ el "name" . text
+    type' <- parseConstructorType =<< elem' ^? attr "type"
+    return (Types.ObjectConstructor cname type')
 
 parseDestructor :: XML.Element -> Maybe Types.ObjectDestructor
-parseDestructor elem = do
-    name <- elem ^? el "destructor" ./ el "name" . text
-    type' <- parseDestructorType =<< elem ^? attr "type"
-    return (Types.ObjectDestructor name type')
+parseDestructor elem' = do
+    dname <- elem' ^? el "destructor" ./ el "name" . text
+    type' <- parseDestructorType =<< elem' ^? attr "type"
+    return (Types.ObjectDestructor dname type')
 
 parseDiscriminator :: XML.Element -> Maybe Types.ObjectDiscriminator
-parseDiscriminator elem = do
-    name <- elem ^? attr "name"
-    let members = elem ^.. el "discriminator" ./ el "member" . text
-    return (Types.ObjectDiscriminator name members)
+parseDiscriminator elem' = do
+    dname <- elem' ^? attr "name"
+    let members = elem' ^.. el "discriminator" ./ el "member" . text
+    return (Types.ObjectDiscriminator dname members)
 
 parseConstructorType :: T.Text -> Maybe Types.ConstructorType
 parseConstructorType "Multiple"     = Just Types.ConstructorMultiple
@@ -147,16 +145,16 @@ class Sing#{discriminatorName} (a :: #{discriminatorName}) where
 
 #{singInstances}
 instance Enum #{discriminatorName} where
-    #{toEnum}
+    #{toEnumCode}
 
-    #{fromEnum}
+    #{fromEnumCode}
 |]
     where
     discriminatorName = Types.objectDiscriminatorName disc
     members = Types.objectDiscriminatorMembers disc
     singInstances = genSingInstances disc
-    toEnum = genToEnum disc
-    fromEnum = genFromEnum disc
+    toEnumCode = genToEnum disc
+    fromEnumCode = genFromEnum disc
 
 genSingInstances :: Types.ObjectDiscriminator -> LT.Text
 genSingInstances disc = LT.intercalate "\n" singInstances
@@ -174,15 +172,14 @@ genToEnum disc = "toEnum a | " `mappend` LT.intercalate "\n        | " (map gen 
     where
     discriminatorName = Types.objectDiscriminatorName disc
     members = Types.objectDiscriminatorMembers disc
-    gen member = [lt|a == fromIntegral GL.#{member} = #{member}|]
+    gen member = [lt|a == GL.#{member} = #{member}|]
     ow = [lt|otherwise = error "Enum.#{discriminatorName}.toEnum: bad argument"|]
 
 genFromEnum :: Types.ObjectDiscriminator -> LT.Text
 genFromEnum disc = LT.intercalate "\n    " $ map gen members
     where
-    discriminatorName = Types.objectDiscriminatorName disc
     members = Types.objectDiscriminatorMembers disc
-    gen member = [lt|fromEnum #{member} = fromIntegral GL.#{member}|]
+    gen member = [lt|fromEnum #{member} = GL.#{member}|]
 
 genObjectInstanceDeclare :: Types.Object -> LT.Text
 genObjectInstanceDeclare (Types.Object objectName constructor destructor Nothing) =
