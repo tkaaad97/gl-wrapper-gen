@@ -65,7 +65,6 @@ genGroupDeclaresCode groups =
 import qualified Graphics.GL as GL
 import qualified Graphics.GL.Ext as GL
 import qualified Graphics.GL.Internal.Shared as GL
-import GLW.Classes
 
 #{LT.intercalate "\n" groupDeclares}|]
 

@@ -27,7 +27,9 @@ library:
   source-dirs: gl-wrapper
   dependencies:
     - gl
+    - linear
     - transformers
+    - vector
 
 executables:
   gl-wrapper-gen:
