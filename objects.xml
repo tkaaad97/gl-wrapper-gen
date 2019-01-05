@@ -8,7 +8,7 @@
             <name>glDeleteBuffers</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "buffer" or name = "buffers"]' attribute="object" value="Buffer" />
+            <inject xpath='/registry/commands/command/param[(name = "buffer" or name = "buffers") and ptype = "GLuint"]' attribute="object" value="Buffer" />
         </injects>
     </object>
     <object name="Framebuffer">
@@ -19,7 +19,7 @@
             <name>glDeleteFramebuffers</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "framebuffer" or name = "framebuffers"]' attribute="object" value="Framebuffer" />
+            <inject xpath='/registry/commands/command/param[(name = "framebuffer" or name = "framebuffers") and ptype = "GLuint"]' attribute="object" value="Framebuffer" />
         </injects>
     </object>
     <object name="Program">
@@ -30,8 +30,8 @@
             <name>glDeleteProgram</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "program" or name = "programs"]' attribute="object" value="Program" />
-            <inject xpath='/registry/commands/command/proto[name = "glCreateProgram"]' attribute="object" value="Program" />
+            <inject xpath='/registry/commands/command/param[(name = "program" or name = "programs") and ptype = "GLuint"]' attribute="object" value="Program" />
+            <inject xpath='/registry/commands/command/proto[name = "glCreateProgram" and ptype = "GLuint"]' attribute="object" value="Program" />
         </injects>
     </object>
     <object name="ProgramPipeline">
@@ -42,7 +42,7 @@
             <name>glDeleteProgramPipelines</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "pipeline" or name = "pipelines"]' attribute="object" value="ProgramPipeline" />
+            <inject xpath='/registry/commands/command/param[(name = "pipeline" or name = "pipelines") and ptype = "GLuint"]' attribute="object" value="ProgramPipeline" />
         </injects>
     </object>
     <object name="Query">
@@ -62,7 +62,7 @@
             <name>glDeleteQueries</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command[(contains(proto/name, "Query") or contains(proto/name, "Queries")) and not(contains(proto/name, "OcclusionQuer"))]/param[name = "id" or name = "ids"]' attribute="object" value="Query" />
+            <inject xpath='/registry/commands/command[(contains(proto/name, "Query") or contains(proto/name, "Queries")) and not(contains(proto/name, "OcclusionQuer"))]/param[(name = "id" or name = "ids") and ptype = "GLuint"]' attribute="object" value="Query" />
         </injects>
     </object>
     <object name="Renderbuffer">
@@ -73,7 +73,7 @@
             <name>glDeleteRenderbuffers</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "renderbuffer" or name = "renderbuffers"]' attribute="object" value="Renderbuffer" />
+            <inject xpath='/registry/commands/command/param[(name = "renderbuffer" or name = "renderbuffers") and ptype = "GLuint"]' attribute="object" value="Renderbuffer" />
         </injects>
     </object>
     <object name="Sampler">
@@ -84,7 +84,7 @@
             <name>glDeleteSamplers</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "sampler" or name = "samplers"]' attribute="object" value="Sampler" />
+            <inject xpath='/registry/commands/command/param[(name = "sampler" or name = "samplers") and ptype = "GLuint"]' attribute="object" value="Sampler" />
         </injects>
     </object>
     <object name="Shader">
@@ -104,8 +104,8 @@
             <name>glDeleteShader</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "shader" or name = "shaders"]' attribute="object" value="Shader" />
-            <inject xpath='/registry/commands/command/proto[name = "glCreateShader"]' attribute="object" value="Shader" />
+            <inject xpath='/registry/commands/command/param[(name = "shader" or name = "shaders") and ptype = "GLuint"]' attribute="object" value="Shader" />
+            <inject xpath='/registry/commands/command/proto[name = "glCreateShader" and ptype = "GLuint"]' attribute="object" value="Shader" />
         </injects>
     </object>
     <object name="Texture">
@@ -130,7 +130,7 @@
             <name>glDeleteTextures</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command/param[name = "texture" or name = "textures"]' attribute="object" value="Texture" />
+            <inject xpath='/registry/commands/command/param[(name = "texture" or name = "textures") and ptype = "GLuint"]' attribute="object" value="Texture" />
         </injects>
     </object>
     <object name="TransformFeedback">
@@ -141,7 +141,7 @@
             <name>glDeleteTransformFeedbacks</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "TransformFeedback")]/param[name = "id" or name = "ids" or name = "xfb"]' attribute="object" value="TransformFeedback" />
+            <inject xpath='/registry/commands/command[contains(proto/name, "TransformFeedback")]/param[(name = "id" or name = "ids" or name = "xfb") and ptype = "GLuint"]' attribute="object" value="TransformFeedback" />
         </injects>
     </object>
     <object name="VertexArray">
@@ -152,7 +152,7 @@
             <name>glDeleteVertexArrays</name>
         </destructor>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "VertexArray")]/param[name = "array" or name = "arrays" or name = "vaobj"]' attribute="object" value="VertexArray" />
+            <inject xpath='/registry/commands/command[contains(proto/name, "VertexArray")]/param[(name = "array" or name = "arrays" or name = "vaobj") and ptype = "GLuint"]' attribute="object" value="VertexArray" />
         </injects>
     </object>
 </objects>
