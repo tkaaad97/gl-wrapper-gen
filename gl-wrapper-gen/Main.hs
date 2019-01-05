@@ -4,19 +4,18 @@ module Main where
 import qualified Command (parseCommand, writeAll)
 import Control.Arrow ((&&&))
 import Control.Exception (throwIO)
-import Control.Lens (filtered, ix)
+import Control.Lens (filtered)
 import qualified Data.Map.Strict as Map (fromList)
 import Data.Maybe (isJust, maybe)
-import Data.Set (Set)
 import qualified Data.Set as Set (difference, fromList, member, union)
-import qualified Data.Text.Lazy.IO as LT (putStr)
 import qualified Group (parseGroup, parseGroupMemberTypes, writeAll)
 import qualified Object (parseObject, writeObjectDeclaresCode)
 import System.Directory (createDirectoryIfMissing)
 import System.IO.Error (userError)
-import qualified Text.XML as XML (Node(..), def, readFile)
+import qualified Text.XML as XML (def, readFile)
 import Text.XML.Lens
-import qualified Types (Command(..), Group(..), Object(..))
+import qualified Types (Group(..), Object(..))
+import qualified Uniform
 
 main :: IO ()
 main = do
@@ -52,6 +51,7 @@ main = do
     Object.writeObjectDeclaresCode objects
     Group.writeAll filteredGroups
     Command.writeAll groupNames om commands
+    Uniform.writeUniformCode
 
     return ()
 
