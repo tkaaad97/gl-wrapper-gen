@@ -9,18 +9,20 @@ import qualified Data.Map.Strict as Map (fromList)
 import Data.Maybe (isJust, maybe)
 import qualified Data.Set as Set (difference, fromList, member, union)
 import qualified Group (parseGroup, parseGroupMemberTypes, writeAll)
+import qualified Newtype (parseNewtype, writeNewtypeDeclaresCode)
 import qualified Object (parseObject, writeObjectDeclaresCode)
 import System.Directory (createDirectoryIfMissing)
 import System.IO.Error (userError)
 import qualified Text.XML as XML (def, readFile)
 import Text.XML.Lens
-import qualified Types (Group(..), Object(..))
+import qualified Types (Group(..), Newtype(..), Object(..))
 import qualified Uniform
 
 main :: IO ()
 main = do
     doc <- XML.readFile XML.def "glw.xml"
     objectDoc <- XML.readFile XML.def "objects.xml"
+    newtypeDoc <- XML.readFile XML.def "newtypes.xml"
     createDirectoryIfMissing True "gl-wrapper/GLW/Internal"
     createDirectoryIfMissing True "gl-wrapper/GLW/Groups"
 
@@ -28,7 +30,12 @@ main = do
         maybeObjects = mapM Object.parseObject objectElements
     objects <- maybe (throwIO . userError $ "failed to parse objects") return maybeObjects
 
+    let newtypeElements = newtypeDoc ^.. root . el "newtypes" ./ el "newtype"
+        maybeNewtypes = mapM Newtype.parseNewtype newtypeElements
+    newtypes <- maybe (throwIO . userError $ "failed to parse objects") return maybeNewtypes
+
     let om = Map.fromList . map (Types.objectName &&& id) $ objects
+        nm = Map.fromList . map (Types.newtypeName &&& id) $ newtypes
         featureEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "feature" ./ el "require" ./ el "enum" . attr "name"
         extEnumNames = Set.fromList $ doc ^.. root . el "registry" ./ el "extensions" ./ el "extension" ./ el "require" ./ el "enum" . attr "name"
         enumNames = Set.union featureEnumNames extEnumNames
@@ -45,12 +52,13 @@ main = do
     let filteredGroups = filter (not . null . Types.groupMembers)  groups
         groupNames = Set.fromList $ map Types.groupName filteredGroups
 
-    let maybeCommands = mapM (Command.parseCommand groupNames om) commandElements
+    let maybeCommands = mapM (Command.parseCommand groupNames om nm) commandElements
     commands <- maybe (throwIO . userError $ "failed to parse commands") return maybeCommands
 
     Object.writeObjectDeclaresCode objects
+    Newtype.writeNewtypeDeclaresCode newtypes
     Group.writeAll filteredGroups
-    Command.writeAll groupNames om commands
+    Command.writeAll groupNames om nm commands
     Uniform.writeUniformCode
 
     return ()

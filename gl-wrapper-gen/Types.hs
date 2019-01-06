@@ -12,6 +12,7 @@ module Types
     , ObjectDestructor(..)
     , DestructorType(..)
     , ObjectDiscriminator(..)
+    , Newtype(..)
     , parsePrimType
     , printPrimType
     ) where
@@ -41,6 +42,7 @@ data TypeInfo = TypeInfo
     { typeInfoType      :: !Type
     , typeInfoEnumGroup :: !(Maybe Text)
     , typeInfoObject    :: !(Maybe Object)
+    , typeInfoNewtype   :: !(Maybe Newtype)
     , typeInfoLength    :: !(Maybe Text)
     } deriving (Show, Eq)
 
@@ -130,3 +132,8 @@ data DestructorType =
     DestructorMultiple |
     DestructorSingle
     deriving (Show, Eq)
+
+data Newtype = Newtype
+    { newtypeName :: !Text
+    , newtypeType :: !PrimType
+    } deriving (Show, Eq)

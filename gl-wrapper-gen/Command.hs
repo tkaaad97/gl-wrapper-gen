@@ -19,44 +19,47 @@ import qualified Text.XML as XML (Element(..))
 import Text.XML.Lens
 import qualified Types
 
-parseCommand :: Set T.Text -> Map T.Text Types.Object -> XML.Element -> Maybe Types.Command
-parseCommand enumGroupNames objects elem' = do
+parseCommand :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> XML.Element -> Maybe Types.Command
+parseCommand enumGroupNames objects newtypes elem' = do
     cname <- elem' ^?  el "command" ./ el "proto" ./ el "name" . text
-    ptype <-parseTypeInfo enumGroupNames objects =<< elem' ^? el "command" ./ el "proto"
-    params <- mapM (parseParam enumGroupNames objects) $ elem' ^.. el "command" ./ el "param"
+    ptype <-parseTypeInfo enumGroupNames objects newtypes =<< elem' ^? el "command" ./ el "proto"
+    params <- mapM (parseParam enumGroupNames objects newtypes) $ elem' ^.. el "command" ./ el "param"
     return (Types.Command cname params ptype)
 
-parseParam :: Set T.Text -> Map T.Text Types.Object -> XML.Element -> Maybe Types.Param
-parseParam enumGroupNames objects elem' = do
+parseParam :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> XML.Element -> Maybe Types.Param
+parseParam enumGroupNames objects newtypes elem' = do
     pname <- elem' ^?  entire ./ el "name" . text
-    ptype <- parseTypeInfo enumGroupNames objects elem'
+    ptype <- parseTypeInfo enumGroupNames objects newtypes elem'
     return (Types.Param pname ptype)
 
-parseTypeInfo :: Set T.Text -> Map T.Text Types.Object -> XML.Element -> Maybe Types.TypeInfo
-parseTypeInfo enumGroupNames objects a = do
+parseTypeInfo :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> XML.Element -> Maybe Types.TypeInfo
+parseTypeInfo enumGroupNames objects newtypes a = do
     ptype <- Types.parsePrimType (a ^? entire ./ el "ptype" . text)
     let type' = handlePtr (Types.TypePrim ptype) pointer
-    return (Types.TypeInfo type' group object len)
+    return (Types.TypeInfo type' group object ntype len)
     where
     pointer = T.length . T.filter ('*' ==) . T.concat $ a ^.. entire . text
     group = a ^? attr "group" . filtered (`Set.member` enumGroupNames)
     object = a ^? attr "object" >>= (`Map.lookup` objects)
+    ntype = a ^? attr "newtype" >>= (`Map.lookup` newtypes)
     len = a ^? attr "len"
 
 handlePtr :: Types.Type -> Int -> Types.Type
 handlePtr p n | n <= 0 = p
 handlePtr p n = handlePtr (Types.TypePtr p) (n - 1)
 
-genCommandDeclaresCode :: Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> LT.Text
-genCommandDeclaresCode groupNames objects commands =
+genCommandDeclaresCode :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> [Types.Command] -> LT.Text
+genCommandDeclaresCode groupNames objects newtypes commands =
     let commandNames = map Types.commandName commands
         commandDeclares = map genCommandDeclare commands
         objectNames = Map.keys objects
+        newtypeNames = Map.keys newtypes
         discriminatorNames = mapMaybe (fmap Types.objectDiscriminatorName . Types.objectDiscriminator) . Map.elems $ objects
     in [lt|{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE KindSignatures #-}
 module GLW
     ( #{T.intercalate "\n    , " (Set.toList groupNames)}
+    , #{T.intercalate "(..)\n    , " newtypeNames}(..)
     , #{T.intercalate "\n    , " objectNames}
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
     , #{T.intercalate "\n    , " commandNames}
@@ -70,6 +73,7 @@ import qualified Graphics.GL.Compatibility45 as GL
 import qualified Graphics.GL.Ext as GL
 import GLW.Internal.Groups
 import GLW.Internal.Objects
+import GLW.Types
 import Prelude ((<$>))
 
 #{LT.intercalate "\n" commandDeclares}|]
@@ -94,20 +98,22 @@ genCommandSignature command =
     in T.concat ["MonadIO m => ", T.intercalate " -> " (ptypes ++ [rtype])]
 
 genParamType :: Types.TypeInfo -> T.Text
-genParamType a = genType False type' gorup object
+genParamType a = genType False type' gorup object ntype
     where
     type' = Types.typeInfoType a
     gorup = Types.typeInfoEnumGroup a
     object = Types.typeInfoObject a
+    ntype = Types.typeInfoNewtype a
 
 genReturnType :: Types.TypeInfo -> T.Text
-genReturnType a = T.concat ["m ", genType True (Types.typeInfoType a) (Types.typeInfoEnumGroup a) (Types.typeInfoObject a)]
+genReturnType a = T.concat ["m ", genType True (Types.typeInfoType a) (Types.typeInfoEnumGroup a) (Types.typeInfoObject a) (Types.typeInfoNewtype a)]
 
-genType :: Bool -> Types.Type -> Maybe T.Text -> Maybe Types.Object -> T.Text
-genType _ (Types.TypePrim t) Nothing Nothing         = [st|#{Types.printPrimType "GL." t}|]
-genType _ (Types.TypePrim _) (Just groupName) _      = groupName
-genType b (Types.TypePrim _) Nothing (Just object)   = genObjectType b object
-genType b (Types.TypePtr a) g o  = handleBracket b [st|Ptr #{genType True a g o}|]
+genType :: Bool -> Types.Type -> Maybe T.Text -> Maybe Types.Object -> Maybe Types.Newtype -> T.Text
+genType _ (Types.TypePrim t) Nothing Nothing Nothing = [st|#{Types.printPrimType "GL." t}|]
+genType _ (Types.TypePrim _) (Just groupName) _ _    = groupName
+genType b (Types.TypePrim _) Nothing (Just object) _ = genObjectType b object
+genType _ (Types.TypePrim _) Nothing Nothing (Just ntype) = Types.newtypeName ntype
+genType b (Types.TypePtr a) g o n = handleBracket b [st|Ptr #{genType True a g o n}|]
 
 handleBracket :: Bool -> T.Text -> T.Text
 handleBracket True a = T.concat ["(", a, ")"]
@@ -118,14 +124,15 @@ genObjectType _ (Types.Object oname _ _ Nothing) = oname
 genObjectType b (Types.Object oname _ _ (Just (Types.ObjectDiscriminator dname _))) = handleBracket b [st|#{oname} (a :: #{dname})|]
 
 genCoerceParam :: Types.Param -> T.Text
-genCoerceParam (Types.Param pname typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) || isJust (Types.typeInfoObject typeInfo) =
+genCoerceParam (Types.Param pname typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) || isJust (Types.typeInfoObject typeInfo) || isJust (Types.typeInfoNewtype typeInfo) =
     [st|(coerce #{modifyParamName pname})|]
 genCoerceParam (Types.Param pname _) = modifyParamName pname
 
 genCoerceReturn :: Types.TypeInfo -> T.Text
-genCoerceReturn (Types.TypeInfo _ (Just _) _ _) = "coerce <$> "
-genCoerceReturn (Types.TypeInfo _ _ (Just _) _) = "coerce <$> "
-genCoerceReturn _                               = ""
+genCoerceReturn (Types.TypeInfo _ (Just _) _ _ _) = "coerce <$> "
+genCoerceReturn (Types.TypeInfo _ _ (Just _) _ _) = "coerce <$> "
+genCoerceReturn (Types.TypeInfo _ _ _ (Just _) _) = "coerce <$> "
+genCoerceReturn _                                 = ""
 
 modifyParamName :: T.Text -> T.Text
 modifyParamName pname | pname == "type" = "type'"
@@ -133,8 +140,8 @@ modifyParamName pname | pname == "data" = "data'"
 modifyParamName pname | pname == "in" = "in'"
 modifyParamName pname = pname
 
-writeAll :: Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> IO ()
-writeAll groupNames objects commands =
-    let code = genCommandDeclaresCode groupNames objects commands
+writeAll :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> [Types.Command] -> IO ()
+writeAll groupNames objects newtypes commands =
+    let code = genCommandDeclaresCode groupNames objects newtypes commands
         path = "gl-wrapper/GLW.hs"
     in LT.writeFile path code

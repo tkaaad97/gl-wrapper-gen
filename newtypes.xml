@@ -1,23 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <newtypes>
     <newtype name="UniformLocation">
-        <type>GLuint</type>
+        <type>GLint</type>
         <injects>
             <inject xpath='/registry/commands/command[contains(proto/name, "Uniform")]/param[name = "location"]' attribute="newtype" value="UniformLocation" />
-            <inject xpath='/registry/commands/command/proto[contains(name, "glGetUniformLocation")]' attribute="newtype" value="UniformLocation" />
         </injects>
     </newtype>
     <newtype name="AttribLocation">
         <type>GLuint</type>
         <injects>
             <inject xpath='/registry/commands/command[contains(proto/name, "VertexAttrib") or contains(proto/name, "VertexArrayAttrib") or contains(proto/name, "glBindAttribLocation")]/param[name = "attribindex" or name = "index"]' attribute="newtype" value="AttribLocation" />
-            <inject xpath='/registry/commands/command/proto[contains(name, "glGetAttribLocation")]' attribute="newtype" value="AttribLocation" />
         </injects>
     </newtype>
     <newtype name="BindingIndex">
         <type>GLuint</type>
         <injects>
             <inject xpath='/registry/commands/command[contains(proto/name, "Vertex")]/param[name = "bindingindex"]' attribute="newtype" value="BindingIndex" />
+        </injects>
+    </newtype>
+    <newtype name="TextureUnit">
+        <type>GLenum</type>
+        <injects>
+            <inject xpath='/registry/commands/command/param[@group = "TextureUnit"]' attribute="newtype" value="TextureUnit" />
         </injects>
     </newtype>
 </newtypes>
