@@ -73,12 +73,15 @@ class Storable a => Uniform a where
     programUniformv :: MonadIO m => Program -> UniformLocation -> Vector a -> m ()
 
 #{LT.intercalate "\n" uniformComponentInstances}
+#{LT.intercalate "\n" uniformInstancePrims}
 #{LT.intercalate "\n" uniformInstanceVecs}
 #{LT.intercalate "\n" uniformInstanceMats}
 |]
     where
     uniformComponentInstances = map (uncurry genUniformComponentInstance)
         [("GL.GLfloat", "f"), ("GL.GLint", "i"), ("GL.GLuint", "ui"), ("GL.GLdouble", "d")]
+    uniformInstancePrims = map genUniformInstancePrim
+        ["GL.GLfloat", "GL.GLint", "GL.GLuint", "GL.GLdouble"]
     uniformInstanceVecs = map genUniformInstanceVec [1..4]
     uniformInstanceMats =
         [genUniformInstanceMat row col "GL.GLfloat" "f" | row <- [2..4], col <- [2..4]] ++
@@ -105,6 +108,17 @@ genUniformComponentInstance type' postfix =
     programUniform4v p = GL.glProgramUniform4#{postfix}v (coerce p) . coerce
     getUniformv p = GL.glGetUniform#{postfix}v (coerce p) . coerce
     getnUniformv p = GL.glGetnUniform#{postfix}v (coerce p) . coerce
+|]
+
+genUniformInstancePrim :: T.Text -> LT.Text
+genUniformInstancePrim type' =
+    [lt|instance Uniform #{type'} where
+    uniform loc a0 = uniform1 (coerce loc) a0
+    uniformv loc vec = liftIO . Vector.unsafeWith vec $
+        uniform1v (coerce loc) (fromIntegral . Vector.length $ vec)
+    programUniform program loc a0 = programUniform1 program (coerce loc) a0
+    programUniformv program loc vec = liftIO . Vector.unsafeWith vec $
+        programUniform1v program (coerce loc) (fromIntegral . Vector.length $ vec)
 |]
 
 genUniformInstanceVec :: Int -> LT.Text
