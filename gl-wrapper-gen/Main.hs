@@ -58,7 +58,7 @@ main = do
     Object.writeObjectDeclaresCode objects
     Newtype.writeNewtypeDeclaresCode newtypes
     Group.writeAll filteredGroups
-    Command.writeAll groupNames om nm commands
+    Command.writeAll groupNames om commands
     Uniform.writeUniformCode
 
     return ()

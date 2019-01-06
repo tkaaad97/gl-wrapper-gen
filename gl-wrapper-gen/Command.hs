@@ -48,21 +48,21 @@ handlePtr :: Types.Type -> Int -> Types.Type
 handlePtr p n | n <= 0 = p
 handlePtr p n = handlePtr (Types.TypePtr p) (n - 1)
 
-genCommandDeclaresCode :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> [Types.Command] -> LT.Text
-genCommandDeclaresCode groupNames objects newtypes commands =
+genCommandDeclaresCode :: Set T.Text -> Map T.Text Types.Object ->  [Types.Command] -> LT.Text
+genCommandDeclaresCode groupNames objects commands =
     let commandNames = map Types.commandName commands
         commandDeclares = map genCommandDeclare commands
         objectNames = Map.keys objects
-        newtypeNames = Map.keys newtypes
         discriminatorNames = mapMaybe (fmap Types.objectDiscriminatorName . Types.objectDiscriminator) . Map.elems $ objects
     in [lt|{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE KindSignatures #-}
 module GLW
     ( #{T.intercalate "\n    , " (Set.toList groupNames)}
-    , #{T.intercalate "(..)\n    , " newtypeNames}(..)
     , #{T.intercalate "\n    , " objectNames}
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
     , #{T.intercalate "\n    , " commandNames}
+    , module GLW.Types
+    , module GLW.Uniforms
     ) where
 
 import Control.Monad.IO.Class (MonadIO)
@@ -74,6 +74,7 @@ import qualified Graphics.GL.Ext as GL
 import GLW.Internal.Groups
 import GLW.Internal.Objects
 import GLW.Types
+import GLW.Uniforms
 import Prelude ((<$>))
 
 #{LT.intercalate "\n" commandDeclares}|]
@@ -140,8 +141,8 @@ modifyParamName pname | pname == "data" = "data'"
 modifyParamName pname | pname == "in" = "in'"
 modifyParamName pname = pname
 
-writeAll :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> [Types.Command] -> IO ()
-writeAll groupNames objects newtypes commands =
-    let code = genCommandDeclaresCode groupNames objects newtypes commands
+writeAll :: Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> IO ()
+writeAll groupNames objects commands =
+    let code = genCommandDeclaresCode groupNames objects commands
         path = "gl-wrapper/GLW.hs"
     in LT.writeFile path code
