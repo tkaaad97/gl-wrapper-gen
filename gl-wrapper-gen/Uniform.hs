@@ -24,6 +24,7 @@ genUniformCode =
 module GLW.Uniforms
     ( Uniform(..)
     , UniformComponent(..)
+    , getUniformLocation
     ) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -35,6 +36,13 @@ import GLW.Internal.Objects (Program(..))
 import GLW.Types (UniformLocation(..))
 import qualified Graphics.GL as GL
 import Linear (V1(..), V2(..), V3(..), V4(..))
+
+getUniformLocation :: Program -> Ptr GL.GLchar -> IO (Maybe UniformLocation)
+getUniformLocation p uname = do
+    loc <- GL.glGetUniformLocation (coerce p) uname
+    if loc < 0
+        then return Nothing
+        else return (Just (UniformLocation loc))
 
 class Storable a => UniformComponent a where
     uniform1 :: MonadIO m => UniformLocation -> a -> m ()
