@@ -12,6 +12,9 @@ import qualified Group (parseGroup, parseGroupMemberTypes, writeAll)
 import qualified Newtype (parseNewtype, writeNewtypeDeclaresCode)
 import qualified Object (parseObject, writeObjectDeclaresCode)
 import System.Directory (createDirectoryIfMissing)
+import qualified System.Environment as System (getArgs)
+import qualified System.Exit as System (exitFailure)
+import qualified System.IO as System (hPutStrLn, stderr)
 import System.IO.Error (userError)
 import qualified Text.XML as XML (def, readFile)
 import Text.XML.Lens
@@ -20,11 +23,12 @@ import qualified Uniform
 
 main :: IO ()
 main = do
+    outputPath <- maybe usage (return . fst) =<< uncons <$> System.getArgs
     doc <- XML.readFile XML.def "glw.xml"
     objectDoc <- XML.readFile XML.def "objects.xml"
     newtypeDoc <- XML.readFile XML.def "newtypes.xml"
-    createDirectoryIfMissing True "gl-wrapper/GLW/Internal"
-    createDirectoryIfMissing True "gl-wrapper/GLW/Groups"
+    createDirectoryIfMissing True $ outputPath ++ "/GLW/Internal"
+    createDirectoryIfMissing True $ outputPath ++ "/GLW/Groups"
 
     let objectElements = objectDoc ^.. root . el "objects" ./ el "object"
         maybeObjects = mapM Object.parseObject objectElements
@@ -55,14 +59,18 @@ main = do
     let maybeCommands = mapM (Command.parseCommand groupNames om nm) commandElements
     commands <- maybe (throwIO . userError $ "failed to parse commands") return maybeCommands
 
-    Object.writeObjectDeclaresCode objects
-    Newtype.writeNewtypeDeclaresCode newtypes
-    Group.writeAll filteredGroups
-    Command.writeAll groupNames om commands
-    Uniform.writeUniformCode
+    Command.writeAll outputPath groupNames om commands
+    Group.writeAll outputPath filteredGroups
+    Newtype.writeNewtypeDeclaresCode outputPath newtypes
+    Object.writeObjectDeclaresCode outputPath objects
+    Uniform.writeUniformCode outputPath
 
     return ()
 
     where
     filterCommand commandNames x = isJust $
         x ^? el "command" ./ el "proto" ./ el "name" . text . filtered (`Set.member` commandNames)
+
+    usage = do
+        System.hPutStrLn System.stderr "usage: gl-wrapper-gen OUTPUT_PATH"
+        System.exitFailure

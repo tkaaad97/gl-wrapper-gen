@@ -103,10 +103,10 @@ class Object a where
     objectDeclares = map genObjectDeclare objects
     discriminatorNames = map Types.objectDiscriminatorName . catMaybes . map Types.objectDiscriminator $ objects
 
-writeObjectDeclaresCode :: [Types.Object] -> IO ()
-writeObjectDeclaresCode objects =
+writeObjectDeclaresCode :: FilePath -> [Types.Object] -> IO ()
+writeObjectDeclaresCode outputPath objects =
     let code = genObjectDeclaresCode objects
-        path = "gl-wrapper/GLW/Internal/Objects.hs"
+        path = outputPath ++ "/GLW/Internal/Objects.hs"
     in LT.writeFile path code
 
 genObjectDeclare :: Types.Object -> LT.Text

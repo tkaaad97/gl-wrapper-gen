@@ -10,10 +10,10 @@ import qualified Data.Text.Lazy as LT (Text, intercalate, pack)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import Text.Shakespeare.Text (lt)
 
-writeUniformCode :: IO ()
-writeUniformCode =
+writeUniformCode :: FilePath -> IO ()
+writeUniformCode outputPath =
     let code = genUniformCode
-        path = "gl-wrapper/GLW/Uniforms.hs"
+        path = outputPath ++ "/GLW/Uniforms.hs"
     in LT.writeFile path code
 
 genUniformCode :: LT.Text

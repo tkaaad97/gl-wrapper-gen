@@ -43,15 +43,15 @@ parseGroupMemberType elem' = do
     ptype <- Types.parsePrimType . Just =<< (elem' ^? entire . el "ptype" . text)
     return (group, ptype)
 
-writeAll :: [Types.Group] -> IO ()
-writeAll groups = do
-    writeGroupDeclaresCode groups
-    writeGroupMemberDeclaresCodes groups
+writeAll :: FilePath -> [Types.Group] -> IO ()
+writeAll outputPath groups = do
+    writeGroupDeclaresCode outputPath groups
+    writeGroupMemberDeclaresCodes outputPath groups
 
-writeGroupDeclaresCode :: [Types.Group] -> IO ()
-writeGroupDeclaresCode groups = do
+writeGroupDeclaresCode :: FilePath -> [Types.Group] -> IO ()
+writeGroupDeclaresCode outputPath groups = do
     let code = genGroupDeclaresCode groups
-        path = "gl-wrapper/GLW/Internal/Groups.hs"
+        path = outputPath ++ "/GLW/Internal/Groups.hs"
     LT.writeFile path code
 
 genGroupDeclaresCode :: [Types.Group] -> LT.Text
@@ -103,15 +103,15 @@ genGroupMemberDeclare groupName memberName =
 #{memberName'} = #{groupName} GL.#{memberName}
 |]
 
-writeGroupMemberDeclaresCodes :: [Types.Group] -> IO ()
-writeGroupMemberDeclaresCodes =
-    mapM_ writeGroupMemberDeclaresCode
+writeGroupMemberDeclaresCodes :: FilePath -> [Types.Group] -> IO ()
+writeGroupMemberDeclaresCodes outputPath =
+    mapM_ (writeGroupMemberDeclaresCode outputPath)
 
-writeGroupMemberDeclaresCode :: Types.Group -> IO ()
-writeGroupMemberDeclaresCode group =
+writeGroupMemberDeclaresCode :: FilePath -> Types.Group -> IO ()
+writeGroupMemberDeclaresCode outputPath group =
     let groupName = Types.groupName group
         code = genGroupMemberDeclaresCode group
-        path = T.unpack . T.concat $ ["gl-wrapper/GLW/Groups/", groupName, ".hs"]
+        path = (outputPath ++) . T.unpack . T.concat $ ["/GLW/Groups/", groupName, ".hs"]
     in LT.writeFile path code
 
 toLowerCamelCase :: T.Text -> T.Text

@@ -141,8 +141,8 @@ modifyParamName pname | pname == "data" = "data'"
 modifyParamName pname | pname == "in" = "in'"
 modifyParamName pname = pname
 
-writeAll :: Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> IO ()
-writeAll groupNames objects commands =
+writeAll :: FilePath -> Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> IO ()
+writeAll outputPath groupNames objects commands =
     let code = genCommandDeclaresCode groupNames objects commands
-        path = "gl-wrapper/GLW.hs"
+        path = outputPath ++ "/GLW.hs"
     in LT.writeFile path code

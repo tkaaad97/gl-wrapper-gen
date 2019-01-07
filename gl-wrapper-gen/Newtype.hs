@@ -42,8 +42,8 @@ genNewtypeDeclare ntype =
     newtypeName = Types.newtypeName ntype
     internalType = Types.newtypeType ntype
 
-writeNewtypeDeclaresCode :: [Types.Newtype] -> IO ()
-writeNewtypeDeclaresCode newtypes =
+writeNewtypeDeclaresCode :: FilePath -> [Types.Newtype] -> IO ()
+writeNewtypeDeclaresCode outputPath newtypes =
     let code = genNewtypeDeclaresCode newtypes
-        path = "gl-wrapper/GLW/Types.hs"
+        path = outputPath ++ "/GLW/Types.hs"
     in LT.writeFile path code
