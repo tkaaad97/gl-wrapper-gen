@@ -70,11 +70,11 @@ import Data.Proxy (Proxy(..))
 import qualified Foreign (Ptr, allocaArray, peekArray, withArray)
 import qualified Graphics.GL as GL
 
-mkCreateObject :: (MonadIO m, Coercible GL.GLuint a) => IO GL.GLuint -> m a
-mkCreateObject = liftIO . fmap coerce
+mkCreateObject :: (MonadIO m, Coercible GL.GLuint a) => IO GL.GLuint -> Proxy a -> m a
+mkCreateObject a _ = liftIO . fmap coerce $ a
 
-mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr GL.GLuint -> IO ()) -> Int -> m [a]
-mkCreateObjects f n =
+mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr GL.GLuint -> IO ()) -> Proxy a -> Int -> m [a]
+mkCreateObjects f _ n =
     fmap coerce . liftIO . Foreign.allocaArray n $ \p -> do
         f (fromIntegral n) p
         Foreign.peekArray n p
@@ -88,10 +88,10 @@ mkDeleteObjects f objs =
         f (fromIntegral (length objs)) p
 
 class Object a where
-    createObject :: MonadIO m => m a
-    createObject = head <$> createObjects 1
-    createObjects :: MonadIO m => Int -> m [a]
-    createObjects n = replicateM n createObject
+    createObject :: MonadIO m => Proxy a -> m a
+    createObject p = head <$> createObjects p 1
+    createObjects :: MonadIO m => Proxy a -> Int -> m [a]
+    createObjects p n = replicateM n (createObject p)
     deleteObject :: MonadIO m => a -> m ()
     deleteObject a = deleteObjects [a]
     deleteObjects :: MonadIO m => [a] -> m ()
