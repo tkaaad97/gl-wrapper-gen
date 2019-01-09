@@ -60,7 +60,9 @@ module GLW
     ( #{T.intercalate "\n    , " (Set.toList groupNames)}
     , #{T.intercalate "\n    , " objectNames}
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
+    , Sing#{T.intercalate "\n    , Sing" discriminatorNames}
     , #{T.intercalate "\n    , " commandNames}
+    , Object(..)
     , module GLW.Types
     , module GLW.Uniforms
     ) where

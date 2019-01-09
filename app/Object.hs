@@ -60,6 +60,7 @@ genObjectDeclaresCode objects =
 module GLW.Internal.Objects
     ( #{T.intercalate "(..)\n    , " objectNames}(..)
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
+    , Sing#{T.intercalate "(..)\n    , Sing" discriminatorNames}(..)
     , Object(..)
     ) where
 
