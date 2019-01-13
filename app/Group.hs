@@ -58,10 +58,12 @@ genGroupDeclaresCode :: [Types.Group] -> LT.Text
 genGroupDeclaresCode groups =
     let groupNames = map Types.groupName groups
         groupDeclares = map genGroupDeclare groups
-    in [lt|module GLW.Internal.Groups
+    in [lt|{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+module GLW.Internal.Groups
     ( #{T.intercalate "(..)\n    , " groupNames}(..)
     ) where
 
+import Data.Bits (Bits(..))
 import qualified Graphics.GL as GL
 
 #{LT.intercalate "\n" groupDeclares}|]
@@ -71,11 +73,17 @@ genGroupDeclare group | null (Types.groupMembers group) = ""
 genGroupDeclare group =
     [lt|newtype #{groupName} = #{groupName} {
     un#{groupName} :: #{Types.printPrimType "GL." groupMemberType}
-    } deriving (Show, Read, Eq)
+    } deriving (#{derivingClasses})
 |]
     where
     groupName = Types.groupName group
     groupMemberType = Types.groupMemberType group
+    derivingClasses = genDerivingClasses group
+
+genDerivingClasses :: Types.Group -> LT.Text
+genDerivingClasses group
+    | Types.groupMemberType group == Types.GLbitfield = "Show, Eq, Read, Bits"
+    | otherwise = "Show, Eq, Read"
 
 genGroupMemberDeclaresCode :: Types.Group -> LT.Text
 genGroupMemberDeclaresCode group =
