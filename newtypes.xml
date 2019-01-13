@@ -3,25 +3,33 @@
     <newtype name="UniformLocation">
         <type>GLint</type>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "Uniform")]/param[name = "location"]' attribute="newtype" value="UniformLocation" />
+            <inject>
+                <action method="insert" xpath='/registry/commands/command[contains(proto/name, "Uniform")]/param[name = "location"]' type="attr" name="newtype" value="UniformLocation" />
+            </inject>
         </injects>
     </newtype>
     <newtype name="AttribLocation">
         <type>GLuint</type>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "VertexAttrib") or contains(proto/name, "VertexArrayAttrib") or contains(proto/name, "glBindAttribLocation")]/param[name = "attribindex" or name = "index"]' attribute="newtype" value="AttribLocation" />
+            <inject>
+                <action method="insert" xpath='/registry/commands/command[contains(proto/name, "VertexAttrib") or contains(proto/name, "VertexArrayAttrib") or contains(proto/name, "glBindAttribLocation")]/param[name = "attribindex" or name = "index"]' type="attr" name="newtype" value="AttribLocation" />
+            </inject>
         </injects>
     </newtype>
     <newtype name="BindingIndex">
         <type>GLuint</type>
         <injects>
-            <inject xpath='/registry/commands/command[contains(proto/name, "Vertex")]/param[name = "bindingindex"]' attribute="newtype" value="BindingIndex" />
+            <inject>
+                <action method="insert" xpath='/registry/commands/command[contains(proto/name, "Vertex")]/param[name = "bindingindex"]' type="attr" name="newtype" value="BindingIndex" />
+            </inject>
         </injects>
     </newtype>
     <newtype name="TextureUnit">
         <type>GLenum</type>
         <injects>
-            <inject xpath='/registry/commands/command/param[@group = "TextureUnit"]' attribute="newtype" value="TextureUnit" />
+            <inject>
+                <action method="insert" xpath='/registry/commands/command/param[@group = "TextureUnit"]' type="attr" name="newtype" value="TextureUnit" />
+            </inject>
         </injects>
     </newtype>
 </newtypes>
