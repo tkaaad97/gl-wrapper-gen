@@ -1,18 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Types
-    ( Group(..)
-    , Command(..)
-    , Param(..)
-    , Type(..)
-    , TypeInfo(..)
-    , PrimType(..)
+    ( Command(..)
+    , ConstructorType(..)
+    , DestructorType(..)
+    , Group(..)
+    , Newtype(..)
     , Object(..)
     , ObjectConstructor(..)
-    , ConstructorType(..)
     , ObjectDestructor(..)
-    , DestructorType(..)
     , ObjectDiscriminator(..)
-    , Newtype(..)
+    , Param(..)
+    , PrimType(..)
+    , ReturnTypeInfo(..)
+    , Type(..)
+    , TypeInfo(..)
     , parsePrimType
     , printPrimType
     ) where
@@ -30,12 +31,17 @@ data Group = Group
 data Command = Command
     { commandName           :: !Text
     , commandParams         :: ![Param]
-    , commandReturnTypeInfo :: !TypeInfo
+    , commandReturnTypeInfo :: !ReturnTypeInfo
     } deriving (Show, Eq)
 
 data Param = Param
     { paramName     :: !Text
     , paramTypeInfo :: !TypeInfo
+    } deriving (Show, Eq)
+
+data ReturnTypeInfo = ReturnTypeInfo
+    { returnTypeInfoTypeInfo   :: !TypeInfo
+    , returnTypeInfoValidation :: !(Maybe Text)
     } deriving (Show, Eq)
 
 data TypeInfo = TypeInfo

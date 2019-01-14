@@ -8,12 +8,13 @@ module Command
 import Control.Lens (filtered)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map (elems, keys, lookup)
-import Data.Maybe (isJust, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set (member, toList)
 import qualified Data.Text as T (Text, concat, filter, intercalate, length)
 import qualified Data.Text.Lazy as LT (Text, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
+import qualified Text.HTML.TagSoup as TagSoup (fromTagText, parseTags)
 import Text.Shakespeare.Text (lt, st)
 import qualified Text.XML as XML (Element(..))
 import Text.XML.Lens
@@ -22,7 +23,7 @@ import qualified Types
 parseCommand :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> XML.Element -> Maybe Types.Command
 parseCommand enumGroupNames objects newtypes elem' = do
     cname <- elem' ^?  el "command" ./ el "proto" ./ el "name" . text
-    ptype <-parseTypeInfo enumGroupNames objects newtypes =<< elem' ^? el "command" ./ el "proto"
+    ptype <-parseReturnTypeInfo enumGroupNames objects newtypes =<< elem' ^? el "command" ./ el "proto"
     params <- mapM (parseParam enumGroupNames objects newtypes) $ elem' ^.. el "command" ./ el "param"
     return (Types.Command cname params ptype)
 
@@ -43,6 +44,13 @@ parseTypeInfo enumGroupNames objects newtypes a = do
     object = a ^? attr "object" >>= (`Map.lookup` objects)
     ntype = a ^? attr "newtype" >>= (`Map.lookup` newtypes)
     len = a ^? attr "len"
+
+parseReturnTypeInfo :: Set T.Text -> Map T.Text Types.Object -> Map T.Text Types.Newtype -> XML.Element -> Maybe Types.ReturnTypeInfo
+parseReturnTypeInfo enumGroupNames objects newtypes a = do
+    t <- parseTypeInfo enumGroupNames objects newtypes a
+    return (Types.ReturnTypeInfo t validation)
+    where
+    validation = a ^? attr "validation"
 
 handlePtr :: Types.Type -> Int -> Types.Type
 handlePtr p n | n <= 0 = p
@@ -77,7 +85,7 @@ import GLW.Internal.Groups
 import GLW.Internal.Objects
 import GLW.Types
 import GLW.Uniforms
-import Prelude ((<$>))
+import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral)
 
 #{LT.intercalate "\n" commandDeclares}|]
 
@@ -88,9 +96,9 @@ genCommandDeclare command =
         paramNames = map (modifyParamName . Types.paramName) params
         commandSignature = genCommandSignature command
         coerceParams = map genCoerceParam params
-        coerceReturnType = genCoerceReturn . Types.commandReturnTypeInfo $ command
+        validationReturnType = genValidationReturn . Types.commandReturnTypeInfo $ command
     in [lt|#{commandName} :: #{commandSignature}
-#{commandName} #{T.intercalate " " paramNames} = #{coerceReturnType}GL.#{commandName} #{T.intercalate " " coerceParams}
+#{commandName} #{T.intercalate " " paramNames} = #{validationReturnType}GL.#{commandName} #{T.intercalate " " coerceParams}
 |]
 
 genCommandSignature :: Types.Command -> T.Text
@@ -108,8 +116,12 @@ genParamType a = genType False type' gorup object ntype
     object = Types.typeInfoObject a
     ntype = Types.typeInfoNewtype a
 
-genReturnType :: Types.TypeInfo -> T.Text
-genReturnType a = T.concat ["m ", genType True (Types.typeInfoType a) (Types.typeInfoEnumGroup a) (Types.typeInfoObject a) (Types.typeInfoNewtype a)]
+genReturnType :: Types.ReturnTypeInfo -> T.Text
+genReturnType (Types.ReturnTypeInfo a validation) = "m " <> rt validation
+    where
+    rt Nothing  = gen True
+    rt (Just _) = "(Maybe " <> gen False <> ")"
+    gen b = genType b (Types.typeInfoType a) (Types.typeInfoEnumGroup a) (Types.typeInfoObject a) (Types.typeInfoNewtype a)
 
 genType :: Bool -> Types.Type -> Maybe T.Text -> Maybe Types.Object -> Maybe Types.Newtype -> T.Text
 genType _ (Types.TypePrim t) Nothing Nothing Nothing = [st|#{Types.printPrimType "GL." t}|]
@@ -117,6 +129,12 @@ genType _ (Types.TypePrim _) (Just groupName) _ _    = groupName
 genType b (Types.TypePrim _) Nothing (Just object) _ = genObjectType b object
 genType _ (Types.TypePrim _) Nothing Nothing (Just ntype) = Types.newtypeName ntype
 genType b (Types.TypePtr a) g o n = handleBracket b [st|Ptr #{genType True a g o n}|]
+
+genConstructor :: Types.TypeInfo -> T.Text
+genConstructor (Types.TypeInfo _ (Just group) _ _ _)  = group
+genConstructor (Types.TypeInfo _ _ (Just object) _ _) = Types.objectName object
+genConstructor (Types.TypeInfo _ _ _ (Just ntype) _)  = Types.newtypeName ntype
+genConstructor _                                      = "coerce"
 
 handleBracket :: Bool -> T.Text -> T.Text
 handleBracket True a = T.concat ["(", a, ")"]
@@ -127,15 +145,26 @@ genObjectType _ (Types.Object oname _ _ Nothing) = oname
 genObjectType b (Types.Object oname _ _ (Just (Types.ObjectDiscriminator dname _))) = handleBracket b [st|#{oname} (a :: #{dname})|]
 
 genCoerceParam :: Types.Param -> T.Text
-genCoerceParam (Types.Param pname typeInfo) | isJust (Types.typeInfoEnumGroup typeInfo) || isJust (Types.typeInfoObject typeInfo) || isJust (Types.typeInfoNewtype typeInfo) =
-    [st|(coerce #{modifyParamName pname})|]
-genCoerceParam (Types.Param pname _) = modifyParamName pname
+genCoerceParam (Types.Param pname typeInfo)
+    | needCoerce typeInfo = [st|(coerce #{modifyParamName pname})|]
+    | otherwise = modifyParamName pname
 
-genCoerceReturn :: Types.TypeInfo -> T.Text
-genCoerceReturn (Types.TypeInfo _ (Just _) _ _ _) = "coerce <$> "
-genCoerceReturn (Types.TypeInfo _ _ (Just _) _ _) = "coerce <$> "
-genCoerceReturn (Types.TypeInfo _ _ _ (Just _) _) = "coerce <$> "
-genCoerceReturn _                                 = ""
+genValidationReturn :: Types.ReturnTypeInfo -> T.Text
+genValidationReturn (Types.ReturnTypeInfo t Nothing)
+    | needCoerce t = "coerce <$> "
+    | otherwise = ""
+genValidationReturn (Types.ReturnTypeInfo t (Just cond))
+    | needCoerce t = [st|fmap (#{constructor} . fromIntegral) . validate (#{cond'}) <$> |]
+    | otherwise = [st|validate (#{cond'}) <$> |]
+    where
+    cond' = TagSoup.fromTagText . head . TagSoup.parseTags $ cond
+    constructor = genConstructor t
+
+needCoerce :: Types.TypeInfo -> Bool
+needCoerce (Types.TypeInfo _ (Just _) _ _ _) = True
+needCoerce (Types.TypeInfo _ _ (Just _) _ _) = True
+needCoerce (Types.TypeInfo _ _ _ (Just _) _) = True
+needCoerce _                                 = False
 
 modifyParamName :: T.Text -> T.Text
 modifyParamName pname | pname == "type" = "type'"

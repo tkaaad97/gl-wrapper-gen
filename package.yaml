@@ -35,6 +35,7 @@ executables:
     - directory
     - lens
     - shakespeare
+    - tagsoup
     - text
     - xml-conduit
     - xml-lens

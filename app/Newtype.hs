@@ -26,9 +26,15 @@ genNewtypeDeclaresCode newtypes =
         newtypeDeclares = map genNewtypeDeclare newtypes
     in [lt|module GLW.Types
     ( #{T.intercalate "(..)\n    , " newtypeNames}(..)
+    , validate
     ) where
 
 import qualified Graphics.GL as GL
+
+validate :: (a -> Bool) -> a -> Maybe a
+validate f a
+    | f a = Just a
+    | otherwise = Nothing
 
 #{LT.intercalate "\n" newtypeDeclares}|]
 
