@@ -5,8 +5,8 @@
         <injects>
             <inject>
                 <action method="insert" xpath='/registry/commands/command[contains(proto/name, "Uniform")]/param[name = "location"]' type="attr" name="newtype" value="UniformLocation" />
-                <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetUniformLocation")]' type="attr" name="newtype" value="UniformLocation" />
-                <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetUniformLocation")]' type="attr" name="validation" value=">= 0" />
+                <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetUniformLocation") or contains(name, "glGetSubroutineUniformLocation")]' type="attr" name="newtype" value="UniformLocation" />
+                <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetUniformLocation") or contains(name, "glGetSubroutineUniformLocation")]' type="attr" name="validation" value=">= 0" />
             </inject>
         </injects>
     </newtype>
