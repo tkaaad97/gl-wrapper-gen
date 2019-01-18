@@ -16,7 +16,7 @@
             <inject>
                 <action method="insert" xpath='/registry/commands/command[contains(proto/name, "VertexAttrib") or contains(proto/name, "VertexArrayAttrib") or contains(proto/name, "glBindAttribLocation")]/param[name = "attribindex" or name = "index"]' type="attr" name="newtype" value="AttribLocation" />
                 <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetAttribLocation")]' type="attr" name="newtype" value="AttribLocation" />
-                <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetAttribLocation")]' type="attr" name="validation" value="0 >=" />
+                <action method="insert" xpath='/registry/commands/command/proto[contains(name, "glGetAttribLocation")]' type="attr" name="validation" value=">= 0" />
             </inject>
         </injects>
     </newtype>
