@@ -16,6 +16,7 @@ import qualified System.Environment as System (getArgs)
 import qualified System.Exit as System (exitFailure)
 import qualified System.IO as System (hPutStrLn, stderr)
 import System.IO.Error (userError)
+import qualified Test
 import qualified Text.XML as XML (def, readFile)
 import Text.XML.Lens
 import qualified Types (Group(..), Newtype(..), Object(..))
@@ -64,6 +65,7 @@ main = do
     Newtype.writeNewtypeDeclaresCode outputPath newtypes
     Object.writeObjectDeclaresCode outputPath objects
     Uniform.writeUniformCode outputPath
+    Test.writeTestModule outputPath
 
     return ()
 
