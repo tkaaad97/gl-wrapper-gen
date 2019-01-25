@@ -56,23 +56,35 @@ handlePtr :: Types.Type -> Int -> Types.Type
 handlePtr p n | n <= 0 = p
 handlePtr p n = handlePtr (Types.TypePtr p) (n - 1)
 
-genCommandDeclaresCode :: Set T.Text -> Map T.Text Types.Object ->  [Types.Command] -> LT.Text
-genCommandDeclaresCode groupNames objects commands =
-    let commandNames = map Types.commandName commands
-        commandDeclares = map genCommandDeclare commands
-        objectNames = Map.keys objects
-        discriminatorNames = mapMaybe (fmap Types.objectDiscriminatorName . Types.objectDiscriminator) . Map.elems $ objects
-    in [lt|{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE KindSignatures #-}
-module GLW
+genExportCode :: Set T.Text -> Map T.Text Types.Object -> LT.Text
+genExportCode groupNames objects =
+    [lt|module GLW
     ( #{T.intercalate "\n    , " (Set.toList groupNames)}
     , #{T.intercalate "\n    , " objectNames}
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
     , Sing#{T.intercalate "\n    , Sing" discriminatorNames}
-    , #{T.intercalate "\n    , " commandNames}
     , Object(..)
+    , module GLW.Commands
     , module GLW.Types
     , module GLW.Uniforms
+    ) where
+
+import GLW.Commands
+import GLW.Internal.Groups
+import GLW.Internal.Objects
+import GLW.Types
+import GLW.Uniforms
+|]
+    where
+    objectNames = Map.keys objects
+    discriminatorNames = mapMaybe (fmap Types.objectDiscriminatorName . Types.objectDiscriminator) . Map.elems $ objects
+
+genCommandDeclaresCode :: [Types.Command] -> LT.Text
+genCommandDeclaresCode commands =
+    [lt|{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE KindSignatures #-}
+module GLW.Commands
+    ( #{T.intercalate "\n    , " commandNames}
     ) where
 
 import Control.Monad.IO.Class (MonadIO)
@@ -90,8 +102,10 @@ import GLW.Test
 #endif
 import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral)
 
-
 #{LT.intercalate "\n" commandDeclares}|]
+    where
+    commandNames = map Types.commandName commands
+    commandDeclares = map genCommandDeclare commands
 
 genCommandDeclare :: Types.Command -> LT.Text
 genCommandDeclare command =
@@ -211,7 +225,9 @@ modifyParamName pname | pname == "in" = "in'"
 modifyParamName pname = pname
 
 writeAll :: FilePath -> Set T.Text -> Map T.Text Types.Object -> [Types.Command] -> IO ()
-writeAll outputPath groupNames objects commands =
-    let code = genCommandDeclaresCode groupNames objects commands
-        path = outputPath ++ "/GLW.hs"
-    in LT.writeFile path code
+writeAll outputPath groupNames objects commands = do
+    LT.writeFile (outputPath ++ "/GLW/Commands.hs") commandCode
+    LT.writeFile (outputPath ++ "/GLW.hs") exportCode
+    where
+    commandCode = genCommandDeclaresCode commands
+    exportCode = genExportCode groupNames objects

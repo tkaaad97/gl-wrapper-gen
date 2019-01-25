@@ -70,9 +70,6 @@ import Data.Coerce (Coercible, coerce)
 import Data.Proxy (Proxy(..))
 import qualified Foreign (Ptr, allocaArray, peekArray, withArray)
 import qualified Graphics.GL as GL
-#ifdef GLW_TEST
-import GLW.Test
-#endif
 
 mkCreateObject :: (MonadIO m, Coercible GL.GLuint a) => IO GL.GLuint -> Proxy a -> m a
 mkCreateObject a _ = liftIO . fmap coerce $ a
