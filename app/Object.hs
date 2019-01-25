@@ -70,22 +70,17 @@ import Data.Coerce (Coercible, coerce)
 import Data.Proxy (Proxy(..))
 import qualified Foreign (Ptr, allocaArray, peekArray, withArray)
 import qualified Graphics.GL as GL
+import qualified GLW.Commands as GLW
 
-mkCreateObject :: (MonadIO m, Coercible GL.GLuint a) => IO GL.GLuint -> Proxy a -> m a
-mkCreateObject a _ = liftIO . fmap coerce $ a
-
-mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr GL.GLuint -> IO ()) -> Proxy a -> Int -> m [a]
+mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> Proxy a -> Int -> m [a]
 mkCreateObjects f _ n =
-    fmap coerce . liftIO . Foreign.allocaArray n $ \p -> do
+    liftIO . Foreign.allocaArray n $ \p -> do
         f (fromIntegral n) p
         Foreign.peekArray n p
 
-mkDeleteObject :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLuint -> IO ()) -> a -> m ()
-mkDeleteObject f = liftIO . f . coerce
-
-mkDeleteObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr GL.GLuint -> IO ()) -> [a] -> m ()
+mkDeleteObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> [a] -> m ()
 mkDeleteObjects f objs =
-    liftIO . Foreign.withArray (coerce objs) $ \p ->
+    liftIO . Foreign.withArray objs $ \p ->
         f (fromIntegral (length objs)) p
 
 class Object a where
@@ -201,16 +196,16 @@ genObjectInstanceDeclare (Types.Object objectName constructor destructor (Just d
 
 genCreateObjectDeclare :: Types.ObjectConstructor -> Maybe T.Text -> LT.Text
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) Nothing =
-    [lt|createObjects = mkCreateObjects GL.#{command}|]
+    [lt|createObjects = mkCreateObjects GLW.#{command}|]
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) Nothing =
-    [lt|createObject = mkCreateObject GL.#{command}|]
+    [lt|createObject _ = GLW.#{command}|]
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorMultiple) (Just discriminatorName) =
-    [lt|createObjects = mkCreateObjects (GL.#{command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
+    [lt|createObjects = mkCreateObjects (GLW.#{command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
 genCreateObjectDeclare (Types.ObjectConstructor command Types.ConstructorSingleReturn) (Just discriminatorName) =
-    [lt|createObject = mkCreateObject (GL.#{command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a)))|]
+    [lt|createObject _ = GLW.#{command} (fromIntegral . fromEnum . sing#{discriminatorName} $ (Proxy :: Proxy a))|]
 
 genDeleteObjectDeclare :: Types.ObjectDestructor -> LT.Text
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorMultiple) =
-    [lt|deleteObjects = mkDeleteObjects GL.#{command}|]
+    [lt|deleteObjects = mkDeleteObjects GLW.#{command}|]
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorSingle) =
-    [lt|deleteObject = mkDeleteObject GL.#{command}|]
+    [lt|deleteObject = GL.#{command}|]
