@@ -32,8 +32,8 @@ import qualified Graphics.GL.Types as GL
 import System.IO.Unsafe (unsafePerformIO)
 
 data GLLog =
-    GLLogCommand ![GLLogValue] |
-    GLLogCommandResult !GLLogValue
+    GLLogCommand !Text ![GLLogValue] |
+    GLLogCommandResult !Text !GLLogValue
     deriving (Show, Eq)
 
 #{declareGLLogValue}
@@ -51,11 +51,11 @@ glLogsRef = unsafePerformIO . newIORef $ (0, [])
 readGLLogs :: IO [GLLog]
 readGLLogs = snd <$> readIORef glLogsRef
 
-logGLCommand :: [GLLogValue] -> IO ()
-logGLCommand = writeGLLog . GLLogCommand
+logGLCommand :: Text -> [GLLogValue] -> IO ()
+logGLCommand command params = writeGLLog $ GLLogCommand command params
 
-logGLCommandResult :: GLLogValue -> IO ()
-logGLCommandResult = writeGLLog . GLLogCommandResult
+logGLCommandResult :: Text -> GLLogValue -> IO ()
+logGLCommandResult command result = writeGLLog $ GLLogCommandResult command result
 
 writeGLLog :: GLLog -> IO ()
 writeGLLog log' = atomicModifyIORef' glLogsRef f
