@@ -26,8 +26,10 @@ genTestModule =
     , flushGLLogs
     ) where
 
-import Data.IORef (newIORef, readIORef, writeIORef, atomicModifyIORef')
+import Data.IORef (IORef, newIORef, readIORef, writeIORef, atomicModifyIORef')
+import Data.Text (Text)
 import qualified Graphics.GL.Types as GL
+import System.IO.Unsafe (unsafePerformIO)
 
 data GLLog =
     GLLogCommand ![GLLogValue] |
@@ -36,12 +38,18 @@ data GLLog =
 
 #{declareGLLogValue}
 
-glLogsRef :: IO (IORef [GLLog])
-glLogsRef = unsafePerformIO . newIORef $ []
+maxLogCount :: Int
+maxLogCount = 150
+
+logDropCount :: Int
+logDropCount = 50
+
+glLogsRef :: IORef (Int, [GLLog])
+glLogsRef = unsafePerformIO . newIORef $ (0, [])
 {-# NOINLINE glLogsRef #-}
 
 readGLLogs :: IO [GLLog]
-readGLLogs = readIORef glLogsRef
+readGLLogs = snd <$> readIORef glLogsRef
 
 logGLCommand :: [GLLogValue] -> IO ()
 logGLCommand = writeGLLog . GLLogCommand
@@ -50,10 +58,17 @@ logGLCommandResult :: GLLogValue -> IO ()
 logGLCommandResult = writeGLLog . GLLogCommandResult
 
 writeGLLog :: GLLog -> IO ()
-writeGLLog a = atomicModifyIORef' glLogsRef (\logs -> (a : logs, ()))
+writeGLLog log' = atomicModifyIORef' glLogsRef f
+    where
+    f (c, logs)
+        | c + 1 >= maxLogCount =
+            let remainder = c + 1 - logDropCount
+            in ((remainder, take remainder (log' : logs)), ())
+        | otherwise =
+            ((c + 1, log' : logs), ())
 
 flushGLLogs :: IO ()
-flushGLLogs = writeIORef glLogsRef []
+flushGLLogs = writeIORef glLogsRef (0, [])
 |]
     where
     glTypeNames =
