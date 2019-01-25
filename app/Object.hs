@@ -55,14 +55,17 @@ parseDestructorType _          = Nothing
 
 genObjectDeclaresCode :: [Types.Object] -> LT.Text
 genObjectDeclaresCode objects =
-    [lt|{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE KindSignatures      #-}
+    [lt|{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE KindSignatures             #-}
 module GLW.Internal.ObjectTypes
     ( #{T.intercalate "(..)\n    , " objectNames}(..)
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
     , Sing#{T.intercalate "(..)\n    , Sing" discriminatorNames}(..)
     ) where
 
+import Data.Proxy
+import Foreign.Storable (Storable(..))
 import qualified Graphics.GL as GL
 
 #{LT.intercalate "\n" objectDeclares}|]
@@ -89,17 +92,18 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Coerce (Coercible, coerce)
 import Data.Proxy (Proxy(..))
 import qualified Foreign (Ptr, allocaArray, peekArray, withArray)
+import Foreign.Storable (Storable(..))
 import qualified Graphics.GL as GL
 import qualified GLW.Commands as GLW
-import qualified GLW.Internal.ObjectTypes
+import GLW.Internal.ObjectTypes
 
-mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> Proxy a -> Int -> m [a]
+mkCreateObjects :: (MonadIO m, Storable a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> Proxy a -> Int -> m [a]
 mkCreateObjects f _ n =
     liftIO . Foreign.allocaArray n $ \p -> do
         f (fromIntegral n) p
         Foreign.peekArray n p
 
-mkDeleteObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> [a] -> m ()
+mkDeleteObjects :: (MonadIO m, Storable a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> [a] -> m ()
 mkDeleteObjects f objs =
     liftIO . Foreign.withArray objs $ \p ->
         f (fromIntegral (length objs)) p
@@ -141,13 +145,13 @@ genObjectDeclare :: Types.Object -> LT.Text
 genObjectDeclare object @ (Types.Object objectName _ _ Nothing) =
     [lt|newtype #{objectName} = #{objectName}
     { un#{objectName} :: GL.GLuint
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Storable)
 |]
 
 genObjectDeclare object @ (Types.Object objectName _ _ (Just discriminator)) =
     [lt|newtype #{objectName} (a :: #{discriminatorName}) = #{objectName}
     { un#{objectName} :: GL.GLuint
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Storable)
 
 #{objectDiscriminatorDeclare}|]
     where
@@ -235,4 +239,4 @@ genDeleteObjectDeclare :: Types.ObjectDestructor -> LT.Text
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorMultiple) =
     [lt|deleteObjects = mkDeleteObjects GLW.#{command}|]
 genDeleteObjectDeclare (Types.ObjectDestructor command Types.DestructorSingle) =
-    [lt|deleteObject = GL.#{command}|]
+    [lt|deleteObject = GLW.#{command}|]

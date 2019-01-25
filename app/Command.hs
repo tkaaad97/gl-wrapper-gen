@@ -81,7 +81,8 @@ import GLW.Uniforms
 
 genCommandDeclaresCode :: [Types.Command] -> LT.Text
 genCommandDeclaresCode commands =
-    [lt|{-# LANGUAGE DataKinds      #-}
+    [lt|{-# LANGUAGE CPP            #-}
+{-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE KindSignatures #-}
 module GLW.Commands
     ( #{T.intercalate "\n    , " commandNames}
@@ -99,7 +100,7 @@ import GLW.Types
 #ifdef GLW_TEST
 import GLW.Test
 #endif
-import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral)
+import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral, return)
 
 #{LT.intercalate "\n" commandDeclares}|]
     where
