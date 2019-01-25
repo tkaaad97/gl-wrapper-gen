@@ -85,21 +85,37 @@ import GLW.Internal.Groups
 import GLW.Internal.Objects
 import GLW.Types
 import GLW.Uniforms
+#ifdef GLW_TEST
+import GLW.Test
+#endif
 import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral)
+
 
 #{LT.intercalate "\n" commandDeclares}|]
 
 genCommandDeclare :: Types.Command -> LT.Text
 genCommandDeclare command =
-    let commandName = Types.commandName command
-        params = Types.commandParams command
-        paramNames = map (modifyParamName . Types.paramName) params
-        commandSignature = genCommandSignature command
-        coerceParams = map genCoerceParam params
-        validationReturnType = genValidationReturn . Types.commandReturnTypeInfo $ command
-    in [lt|#{commandName} :: #{commandSignature}
-#{commandName} #{T.intercalate " " paramNames} = #{validationReturnType}GL.#{commandName} #{T.intercalate " " coerceParams}
+    [lt|#{commandName} :: #{commandSignature}
+#{commandName} #{T.intercalate " " paramNames} = do
+#ifdef GLW_TEST
+    #{logCommandStart}
+#endif
+    _result <- #{validationReturnType}GL.#{commandName} #{T.intercalate " " coerceParams}
+#ifdef GLW_TEST
+    #{logCommandEnd}
+#endif
+    return _result
 |]
+    where
+    commandName = Types.commandName command
+    params = Types.commandParams command
+    paramNames = map (modifyParamName . Types.paramName) params
+    commandSignature = genCommandSignature command
+    coerceParams = map genCoerceParam params
+    validationReturnType = genValidationReturn . Types.commandReturnTypeInfo $ command
+    returnType = Types.typeInfoType . Types.returnTypeInfoTypeInfo . Types.commandReturnTypeInfo $ command
+    logCommandStart = genLogCommandStart commandName (zip paramNames params)
+    logCommandEnd = genLogCommandEnd commandName returnType
 
 genCommandSignature :: Types.Command -> T.Text
 genCommandSignature command =
@@ -159,6 +175,28 @@ genValidationReturn (Types.ReturnTypeInfo t (Just cond))
     where
     cond' = TagSoup.fromTagText . head . TagSoup.parseTags $ cond
     constructor = genConstructor t
+
+genLogCommandStart :: T.Text -> [(T.Text, Types.Param)] -> LT.Text
+genLogCommandStart commandName params =
+    [lt|logGLCommandStart "#{commandName}" [#{logParams}]|]
+    where
+    logParams = T.intercalate ", " (map genLogParam params)
+
+genLogCommandEnd :: T.Text -> Types.Type -> LT.Text
+genLogCommandEnd commandName returnType =
+    [lt|logGLCommandEnd "#{commandName}" (#{resultValue})|]
+    where
+    resultValue = genLogV "_result" returnType
+
+genLogParam :: (T.Text, Types.Param) -> T.Text
+genLogParam (paramName, param) = genLogV paramName type'
+    where
+    type' = Types.typeInfoType . Types.paramTypeInfo $ param
+
+genLogV :: T.Text -> Types.Type -> T.Text
+genLogV _ (Types.TypePrim Types.Void) = "LogV'Void"
+genLogV paramName (Types.TypePrim primType) = T.concat [Types.printPrimType "LogV'" primType, " ", paramName]
+genLogV _ (Types.TypePtr _) = "LogV'Ptr"
 
 needCoerce :: Types.TypeInfo -> Bool
 needCoerce (Types.TypeInfo _ (Just _) _ _ _) = True

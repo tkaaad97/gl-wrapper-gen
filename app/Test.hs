@@ -114,6 +114,7 @@ flushGLLogs = writeIORef glLogsRef (0, [])
     declareGLLogValue =
         [lt|data GLLogValue =
     #{conltructorsGLLogValue} |
+    LogV'Ptr |
     LogV'Void
     deriving (Show, Eq)
 |]
