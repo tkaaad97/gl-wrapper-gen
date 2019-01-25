@@ -4,6 +4,8 @@ module Object
     ( parseObject
     , genObjectDeclaresCode
     , writeObjectDeclaresCode
+    , writeObjectInstancesCode
+    , writeAll
     ) where
 
 import Data.Maybe (catMaybes)
@@ -54,6 +56,24 @@ parseDestructorType _          = Nothing
 genObjectDeclaresCode :: [Types.Object] -> LT.Text
 genObjectDeclaresCode objects =
     [lt|{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE KindSignatures      #-}
+module GLW.Internal.ObjectTypes
+    ( #{T.intercalate "(..)\n    , " objectNames}(..)
+    , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
+    , Sing#{T.intercalate "(..)\n    , Sing" discriminatorNames}(..)
+    ) where
+
+import qualified Graphics.GL as GL
+
+#{LT.intercalate "\n" objectDeclares}|]
+    where
+    objectNames = map Types.objectName objects
+    objectDeclares = map genObjectDeclare objects
+    discriminatorNames = map Types.objectDiscriminatorName . catMaybes . map Types.objectDiscriminator $ objects
+
+genObjectInstancesCode :: [Types.Object] -> LT.Text
+genObjectInstancesCode objects =
+    [lt|{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -71,6 +91,7 @@ import Data.Proxy (Proxy(..))
 import qualified Foreign (Ptr, allocaArray, peekArray, withArray)
 import qualified Graphics.GL as GL
 import qualified GLW.Commands as GLW
+import qualified GLW.Internal.ObjectTypes
 
 mkCreateObjects :: (MonadIO m, Coercible GL.GLuint a) => (GL.GLsizei -> Foreign.Ptr a -> IO ()) -> Proxy a -> Int -> m [a]
 mkCreateObjects f _ n =
@@ -93,39 +114,45 @@ class Object a where
     deleteObjects :: MonadIO m => [a] -> m ()
     deleteObjects = mapM_ deleteObject
 
-#{LT.intercalate "\n" objectDeclares}|]
+#{LT.intercalate "\n" objectInstances}|]
     where
     objectNames = map Types.objectName objects
-    objectDeclares = map genObjectDeclare objects
+    objectInstances = map genObjectInstanceDeclare objects
     discriminatorNames = map Types.objectDiscriminatorName . catMaybes . map Types.objectDiscriminator $ objects
 
 writeObjectDeclaresCode :: FilePath -> [Types.Object] -> IO ()
 writeObjectDeclaresCode outputPath objects =
     let code = genObjectDeclaresCode objects
+        path = outputPath ++ "/GLW/Internal/ObjectTypes.hs"
+    in LT.writeFile path code
+
+writeObjectInstancesCode :: FilePath -> [Types.Object] -> IO ()
+writeObjectInstancesCode outputPath objects =
+    let code = genObjectInstancesCode objects
         path = outputPath ++ "/GLW/Internal/Objects.hs"
     in LT.writeFile path code
+
+writeAll :: FilePath -> [Types.Object] -> IO ()
+writeAll outputPath objects = do
+    writeObjectDeclaresCode outputPath objects
+    writeObjectInstancesCode outputPath objects
 
 genObjectDeclare :: Types.Object -> LT.Text
 genObjectDeclare object @ (Types.Object objectName _ _ Nothing) =
     [lt|newtype #{objectName} = #{objectName}
     { un#{objectName} :: GL.GLuint
     } deriving (Show, Eq)
-
-#{objectInstanceDeclare}|]
-    where
-    objectInstanceDeclare = genObjectInstanceDeclare object
+|]
 
 genObjectDeclare object @ (Types.Object objectName _ _ (Just discriminator)) =
     [lt|newtype #{objectName} (a :: #{discriminatorName}) = #{objectName}
     { un#{objectName} :: GL.GLuint
     } deriving (Show, Eq)
 
-#{objectDiscriminatorDeclare}
-#{objectInstanceDeclare}|]
+#{objectDiscriminatorDeclare}|]
     where
     discriminatorName = Types.objectDiscriminatorName discriminator
     objectDiscriminatorDeclare = genDiscriminatorDeclare discriminator
-    objectInstanceDeclare = genObjectInstanceDeclare object
 
 genDiscriminatorDeclare :: Types.ObjectDiscriminator -> LT.Text
 genDiscriminatorDeclare disc =

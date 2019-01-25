@@ -94,9 +94,8 @@ import qualified Graphics.GL as GL
 import qualified Graphics.GL.Compatibility45 as GL
 import qualified Graphics.GL.Ext as GL
 import GLW.Internal.Groups
-import GLW.Internal.Objects
+import GLW.Internal.ObjectTypes
 import GLW.Types
-import GLW.Uniforms
 #ifdef GLW_TEST
 import GLW.Test
 #endif

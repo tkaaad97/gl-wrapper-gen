@@ -10,7 +10,7 @@ import Data.Maybe (isJust, maybe)
 import qualified Data.Set as Set (difference, fromList, member, union)
 import qualified Group (parseGroup, parseGroupMemberTypes, writeAll)
 import qualified Newtype (parseNewtype, writeNewtypeDeclaresCode)
-import qualified Object (parseObject, writeObjectDeclaresCode)
+import qualified Object (parseObject, writeAll)
 import System.Directory (createDirectoryIfMissing)
 import qualified System.Environment as System (getArgs)
 import qualified System.Exit as System (exitFailure)
@@ -63,7 +63,7 @@ main = do
     Command.writeAll outputPath groupNames om commands
     Group.writeAll outputPath filteredGroups
     Newtype.writeNewtypeDeclaresCode outputPath newtypes
-    Object.writeObjectDeclaresCode outputPath objects
+    Object.writeAll outputPath objects
     Uniform.writeUniformCode outputPath
     Test.writeTestModule outputPath
 
