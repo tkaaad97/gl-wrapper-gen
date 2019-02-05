@@ -1,22 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
-module Test
-    ( genTestModule
-    , writeTestModule
+module Debug
+    ( genDebugModule
+    , writeDebugModule
     ) where
 
 import qualified Data.Text.Lazy as LT (Text, intercalate)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import Text.Shakespeare.Text (lt)
 
-writeTestModule :: FilePath -> IO ()
-writeTestModule outputPath =
-    let path = outputPath <> "/GLW/Test.hs"
-    in LT.writeFile path genTestModule
+writeDebugModule :: FilePath -> IO ()
+writeDebugModule outputPath =
+    let path = outputPath <> "/GLW/Debug.hs"
+    in LT.writeFile path genDebugModule
 
-genTestModule :: LT.Text
-genTestModule =
-    [lt|module GLW.Test
+genDebugModule :: LT.Text
+genDebugModule =
+    [lt|module GLW.Debug
     ( GLLog(..)
     , GLLogValue(..)
     , logGLCommand

@@ -8,6 +8,7 @@ import Control.Lens (filtered)
 import qualified Data.Map.Strict as Map (fromList)
 import Data.Maybe (isJust, maybe)
 import qualified Data.Set as Set (difference, fromList, member, union)
+import qualified Debug
 import qualified Group (parseGroup, parseGroupMemberTypes, writeAll)
 import qualified Newtype (parseNewtype, writeNewtypeDeclaresCode)
 import qualified Object (parseObject, writeAll)
@@ -16,7 +17,6 @@ import qualified System.Environment as System (getArgs)
 import qualified System.Exit as System (exitFailure)
 import qualified System.IO as System (hPutStrLn, stderr)
 import System.IO.Error (userError)
-import qualified Test
 import qualified Text.XML as XML (def, readFile)
 import Text.XML.Lens
 import qualified Types (Group(..), Newtype(..), Object(..))
@@ -65,7 +65,7 @@ main = do
     Newtype.writeNewtypeDeclaresCode outputPath newtypes
     Object.writeAll outputPath objects
     Uniform.writeUniformCode outputPath
-    Test.writeTestModule outputPath
+    Debug.writeDebugModule outputPath
 
     return ()
 

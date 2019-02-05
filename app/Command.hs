@@ -97,8 +97,8 @@ import qualified Graphics.GL.Ext as GL
 import GLW.Internal.Groups
 import GLW.Internal.ObjectTypes
 import GLW.Types
-#ifdef GLW_TEST
-import GLW.Test
+#ifdef GLW_DEBUG
+import GLW.Debug
 #endif
 import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral, return)
 
@@ -111,11 +111,11 @@ genCommandDeclare :: Types.Command -> LT.Text
 genCommandDeclare command =
     [lt|#{commandName} :: #{commandSignature}
 #{commandName} #{T.intercalate " " paramNames} = do
-#ifdef GLW_TEST
+#ifdef GLW_DEBUG
     #{logCommandStart}
 #endif
     _result <- #{validationReturnType}GL.#{commandName} #{T.intercalate " " coerceParams}
-#ifdef GLW_TEST
+#ifdef GLW_DEBUG
     #{logCommandEnd}
 #endif
     return _result
