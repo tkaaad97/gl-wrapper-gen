@@ -90,7 +90,6 @@ module GLW.Internal.Objects
 
 import Control.Monad (replicateM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Coerce (Coercible, coerce)
 import Data.Proxy (Proxy(..))
 import qualified Foreign (Ptr, allocaArray, peekArray, withArray)
 import Foreign.Storable (Storable(..))

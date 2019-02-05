@@ -101,7 +101,7 @@ import GLW.Types
 #ifdef GLW_DEBUG
 import GLW.Debug
 #endif
-import Prelude (Eq(..), Maybe, Ord(..), (.), (<$>), fmap, fromIntegral, return)
+import Prelude (Maybe, Ord(..), (.), (<$>), fmap, fromIntegral, return)
 
 #{LT.intercalate "\n" commandDeclares}|]
     where
