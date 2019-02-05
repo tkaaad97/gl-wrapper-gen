@@ -85,6 +85,7 @@ module GLW.Internal.Objects
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
     , Sing#{T.intercalate "(..)\n    , Sing" discriminatorNames}(..)
     , Object(..)
+    , Zero(..)
     ) where
 
 import Control.Monad (replicateM)
@@ -118,6 +119,9 @@ class Object a where
     deleteObjects :: MonadIO m => [a] -> m ()
     deleteObjects = mapM_ deleteObject
 
+class Zero a where
+    zero :: a
+
 #{LT.intercalate "\n" objectInstances}|]
     where
     objectNames = map Types.objectName objects
@@ -142,13 +146,13 @@ writeAll outputPath objects = do
     writeObjectInstancesCode outputPath objects
 
 genObjectDeclare :: Types.Object -> LT.Text
-genObjectDeclare object @ (Types.Object objectName _ _ Nothing) =
+genObjectDeclare (Types.Object objectName _ _ Nothing) =
     [lt|newtype #{objectName} = #{objectName}
     { un#{objectName} :: GL.GLuint
     } deriving (Show, Eq, Storable)
 |]
 
-genObjectDeclare object @ (Types.Object objectName _ _ (Just discriminator)) =
+genObjectDeclare (Types.Object objectName _ _ (Just discriminator)) =
     [lt|newtype #{objectName} (a :: #{discriminatorName}) = #{objectName}
     { un#{objectName} :: GL.GLuint
     } deriving (Show, Eq, Storable)
@@ -210,6 +214,9 @@ genObjectInstanceDeclare (Types.Object objectName constructor destructor Nothing
     [lt|instance Object #{objectName} where
     #{createObjectDeclare}
     #{deleteObjectDeclare}
+
+instance Zero #{objectName} where
+    zero = #{objectName} 0
 |]
     where
     createObjectDeclare = genCreateObjectDeclare constructor Nothing
@@ -219,6 +226,9 @@ genObjectInstanceDeclare (Types.Object objectName constructor destructor (Just d
     [lt|instance Sing#{discriminatorName} a => Object (#{objectName} (a :: #{discriminatorName})) where
     #{createObjectDeclare}
     #{deleteObjectDeclare}
+
+instance Zero (#{objectName} (a :: #{discriminatorName})) where
+    zero = #{objectName} 0
 |]
     where
     discriminatorName = Types.objectDiscriminatorName discriminator

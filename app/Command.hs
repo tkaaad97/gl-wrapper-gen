@@ -64,6 +64,7 @@ genExportCode groupNames objects =
     , #{T.intercalate "(..)\n    , " discriminatorNames}(..)
     , Sing#{T.intercalate "\n    , Sing" discriminatorNames}
     , Object(..)
+    , Zero(..)
     , module GLW.Commands
     , module GLW.Types
     , module GLW.Uniforms
