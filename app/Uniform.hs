@@ -28,6 +28,7 @@ module GLW.Uniforms
     ) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.ByteString (ByteString, useAsCString)
 import Data.Coerce (coerce)
 import Data.Vector.Storable (Vector)
 import qualified Data.Vector.Storable as Vector (length, unsafeWith)
@@ -37,9 +38,9 @@ import GLW.Types (UniformLocation(..))
 import qualified Graphics.GL as GL
 import Linear (V1(..), V2(..), V3(..), V4(..))
 
-getUniformLocation :: Program -> Ptr GL.GLchar -> IO (Maybe UniformLocation)
+getUniformLocation :: Program -> ByteString -> IO (Maybe UniformLocation)
 getUniformLocation p uname = do
-    loc <- GL.glGetUniformLocation (coerce p) uname
+    loc <- useAsCString uname $ \cs -> GL.glGetUniformLocation (coerce p) cs
     if loc < 0
         then return Nothing
         else return (Just (UniformLocation loc))
@@ -123,7 +124,7 @@ genUniformInstancePrim type' =
 
 genUniformInstanceVec :: Int -> LT.Text
 genUniformInstanceVec len =
-    [lt|instance UniformComponent a => Uniform (V#{len} a) where
+    [lt|instance {-# OVERLAPS #-} UniformComponent a => Uniform (V#{len} a) where
     uniform loc (V#{len} #{vargs}) = uniform#{len} (coerce loc) #{vargs}
     uniformv loc vec = liftIO . Vector.unsafeWith vec $ \p ->
         uniform#{len}v (coerce loc) (fromIntegral . Vector.length $ vec) (coerce p :: Ptr a)
