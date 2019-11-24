@@ -153,5 +153,5 @@ genUniformInstanceMat row col type' postfix =
 
 genUniformMatrixFunctionName :: T.Text -> Int -> Int -> T.Text -> LT.Text
 genUniformMatrixFunctionName base row col post
-    | row == col = [lt|#{base}#{row}#{post}|]
-    | otherwise = [lt|#{base}#{row}x#{col}#{post}|]
+    | row == col = [lt|#{base}#{col}#{post}|]
+    | otherwise = [lt|#{base}#{col}x#{row}#{post}|]
